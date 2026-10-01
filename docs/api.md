@@ -677,7 +677,21 @@ Service Level Agreements (SLAs) enforce operational milestones for IT incident r
     "resolutionSlaBreached": 5
   }
   ```
-- **Error Codes**:
-  - `403 Forbidden`: Access denied for non-managerial/non-admin staff.
+---
+
+## 4. Frontend Client Integration & CORS
+
+### 4.1 CORS Policy
+The TechConnect Spring Boot backend configures CORS in `com.techconnect.config.SecurityConfig`:
+- **Allowed Origins**: `*` (or configured frontend development URL)
+- **Allowed Methods**: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`
+- **Allowed Headers**: `Authorization`, `Content-Type`, `Accept`, `Origin`, `X-Requested-With`
+- **Max Age**: `3600` seconds
+
+### 4.2 React Client Consumption
+- Centralized Axios client (`frontend/src/services/api.js`) applies `import.meta.env.VITE_API_BASE_URL`.
+- Automatically attaches `Authorization: Bearer <token>` for all authenticated requests.
+- On `401 Unauthorized` responses, clears local token storage and dispatches `techconnect:auth-expired` to redirect to `/login`.
+
 
 

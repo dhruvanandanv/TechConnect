@@ -98,5 +98,44 @@ TechConnect/
 
 ---
 
-## Phase 1 Status
-- **Backend Foundation**: Active (Spring Boot, Health Endpoint `GET /api/health`).
+## Phase Completion Status
+- **Phase 1 – Project Foundation**: COMPLETE
+- **Phase 2 – PostgreSQL + JPA Database**: COMPLETE
+- **Phase 3 – Registration + Login**: COMPLETE
+- **Phase 4 – JWT + Spring Security + RBAC**: COMPLETE
+- **Phase 5 – IT Service Ticket Management**: COMPLETE
+- **Phase 6 – SLA Management & Automation Engine**: COMPLETE
+- **Phase 7 – React Frontend & Dashboard**: COMPLETE
+
+---
+
+## Running Locally
+
+### 1. Spring Boot Backend
+```bash
+cd backend
+# Run test suite
+./mvnw.cmd clean test
+
+# Run application on http://localhost:8080
+./mvnw.cmd spring-boot:run
+```
+
+### 2. React Frontend
+```bash
+cd frontend
+# Install dependencies
+npm install
+
+# Run Vite dev server on http://localhost:5173
+npm run dev
+
+# Or build production distribution
+npm run build
+```
+
+---
+
+## Frontend Documentation
+Detailed frontend architecture, routing, role-based UI flows, and API integration are documented in [docs/frontend.md](docs/frontend.md).
+Backend API contracts are documented in [docs/api.md](docs/api.md).
