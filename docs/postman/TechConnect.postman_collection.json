@@ -2,13 +2,18 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
     "name": "TechConnect ITSM API",
-    "description": "Postman Collection for TechConnect AI-Powered Enterprise IT Service Management Platform.",
+    "description": "Postman Collection for TechConnect AI-Powered Enterprise IT Service Management Platform (Phase 4: JWT Authentication & Role-Based Authorization).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:8080/api",
+      "type": "string"
+    },
+    {
+      "key": "jwt",
+      "value": "",
       "type": "string"
     }
   ],
@@ -26,7 +31,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["health"]
             },
-            "description": "Verifies that the Spring Boot backend is active and responding."
+            "description": "Verifies that the Spring Boot backend is active and responding (Public endpoint)."
           }
         }
       ]
@@ -35,7 +40,7 @@
       "name": "Authentication",
       "item": [
         {
-          "name": "Register User - Success (Employee)",
+          "name": "Register User - Employee",
           "request": {
             "method": "POST",
             "header": [
@@ -68,18 +73,33 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Hacker User\",\n  \"email\": \"hacker@example.com\",\n  \"password\": \"UserSecurePass123!\",\n  \"role\": \"ROLE_ADMIN\"\n}"
+              "raw": "{\n  \"name\": \"Attacker User\",\n  \"email\": \"attacker@example.com\",\n  \"password\": \"UserSecurePass123!\",\n  \"role\": \"ROLE_ADMIN\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/register",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "register"]
             },
-            "description": "Verifies that public registration rejects attempts to self-assign administrative roles (returns 400 Bad Request)."
+            "description": "Verifies that public registration strictly blocks self-assignment of administrative roles (returns 400 Bad Request)."
           }
         },
         {
-          "name": "Login - Success",
+          "name": "Login - Employee (Sets {{jwt}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"jwt\", jsonData.token);",
+                  "    console.log(\"Saved JWT access token to collection variable {{jwt}}\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
@@ -90,14 +110,125 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"UserSecurePass123!\"\n}"
+              "raw": "{\n  \"email\": \"employee@techconnect.com\",\n  \"password\": \"TestPassOnlyInTests!2026\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "login"]
             },
-            "description": "Verifies credentials with BCrypt and returns safe user profile without secrets."
+            "description": "Authenticates as an Employee and automatically stores the returned JWT into the collection variable {{jwt}}."
+          }
+        },
+        {
+          "name": "Login - Engineer (Sets {{jwt}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"jwt\", jsonData.token);",
+                  "    console.log(\"Saved Engineer JWT to {{jwt}}\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"engineer@techconnect.com\",\n  \"password\": \"TestPassOnlyInTests!2026\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticates as an Engineer and saves the returned JWT into the collection variable {{jwt}}."
+          }
+        },
+        {
+          "name": "Login - Manager (Sets {{jwt}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"jwt\", jsonData.token);",
+                  "    console.log(\"Saved Manager JWT to {{jwt}}\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager@techconnect.com\",\n  \"password\": \"TestPassOnlyInTests!2026\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticates as a Manager and saves the returned JWT into the collection variable {{jwt}}."
+          }
+        },
+        {
+          "name": "Login - Admin (Sets {{jwt}})",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set(\"jwt\", jsonData.token);",
+                  "    console.log(\"Saved Admin JWT to {{jwt}}\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@techconnect.com\",\n  \"password\": \"TestPassOnlyInTests!2026\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Authenticates as an Administrator and saves the returned JWT into the collection variable {{jwt}}."
           }
         },
         {
@@ -112,14 +243,91 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"jane.doe@example.com\",\n  \"password\": \"WrongPassword!\"\n}"
+              "raw": "{\n  \"email\": \"employee@techconnect.com\",\n  \"password\": \"WrongPassword!\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "login"]
             },
-            "description": "Rejects invalid password with 401 Unauthorized."
+            "description": "Rejects invalid credentials with 401 Unauthorized."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Role-Based Authorization Tests",
+      "item": [
+        {
+          "name": "Employee Test Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/employee/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["employee", "test"]
+            },
+            "description": "Accessible by EMPLOYEE, ENGINEER, MANAGER, and ADMIN. Returns 200 OK if authenticated with any of these roles, or 401 if unauthenticated."
+          }
+        },
+        {
+          "name": "Engineer Test Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/engineer/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["engineer", "test"]
+            },
+            "description": "Accessible by ENGINEER and ADMIN. Returns 200 OK for Engineer/Admin; returns 403 Forbidden for Employee or Manager."
+          }
+        },
+        {
+          "name": "Manager Test Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/manager/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["manager", "test"]
+            },
+            "description": "Accessible by MANAGER and ADMIN. Returns 200 OK for Manager/Admin; returns 403 Forbidden for Employee or Engineer."
+          }
+        },
+        {
+          "name": "Admin Test Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "test"]
+            },
+            "description": "Accessible by ADMIN only. Returns 200 OK for Admin; returns 403 Forbidden for Employee, Engineer, or Manager."
           }
         }
       ]

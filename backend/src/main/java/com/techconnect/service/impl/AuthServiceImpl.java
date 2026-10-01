@@ -14,11 +14,14 @@ import com.techconnect.mapper.UserMapper;
 import com.techconnect.repository.RoleRepository;
 import com.techconnect.repository.UserRepository;
 import com.techconnect.service.AuthService;
+import com.techconnect.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +32,7 @@ public class AuthServiceImpl implements AuthService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final JwtService jwtService;
 
     @Override
     @Transactional
@@ -103,10 +107,17 @@ public class AuthServiceImpl implements AuthService {
 
         log.info("Successful login for user ID: {} ({})", user.getId(), normalizedEmail);
 
-        // 4. Return safe response without password or hash
+        // 4. Generate JWT access token with role authority claim
+        String roleAuthority = user.getRole().getName().name();
+        String token = jwtService.generateToken(user.getEmail(), List.of(roleAuthority));
+
+        // 5. Return safe response with JWT, bearer type, expiration, and user details
         return AuthResponse.builder()
                 .success(true)
                 .message("Login successful")
+                .token(token)
+                .tokenType("Bearer")
+                .expiresIn(jwtService.getExpirationMs())
                 .user(userMapper.toUserResponse(user))
                 .build();
     }
