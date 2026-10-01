@@ -30,6 +30,8 @@ public class TicketResponse {
     private Long departmentId;
     private String departmentName;
 
+    private LocalDateTime responseDeadline;
+    private LocalDateTime respondedAt;
     private LocalDateTime slaDeadline;
     private LocalDateTime resolvedAt;
     private String resolutionDescription;

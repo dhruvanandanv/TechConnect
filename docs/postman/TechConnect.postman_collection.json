@@ -572,6 +572,65 @@
           }
         }
       ]
+    },
+    {
+      "name": "SLA Management",
+      "item": [
+        {
+          "name": "Get Ticket SLA",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/sla",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "sla"]
+            },
+            "description": "Retrieves comprehensive SLA timing, response/resolution status, remaining minutes, and pause state for a specific ticket. Role and ownership aware."
+          }
+        },
+        {
+          "name": "Get Breached Tickets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sla/breached",
+              "host": ["{{baseUrl}}"],
+              "path": ["sla", "breached"]
+            },
+            "description": "Retrieves all currently breached tickets across the platform. Accessible to Managers and Admins only."
+          }
+        },
+        {
+          "name": "Get SLA Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/sla/summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["sla", "summary"]
+            },
+            "description": "Retrieves aggregate platform SLA performance indicators, counts of on-track, at-risk, and breached tickets, and milestone success rates. Accessible to Managers and Admins only."
+          }
+        }
+      ]
     }
   ]
 }

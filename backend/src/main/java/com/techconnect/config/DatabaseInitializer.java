@@ -60,39 +60,30 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     private void initSlaRules() {
-        if (!slaRepository.existsByPriority(Priority.CRITICAL)) {
-            slaRepository.save(SLA.builder()
-                    .priority(Priority.CRITICAL)
-                    .resolutionTimeHours(2)
-                    .warningThresholdHours(1)
-                    .description("Critical outage affecting business operations (2h SLA)")
-                    .build());
-        }
-        if (!slaRepository.existsByPriority(Priority.HIGH)) {
-            slaRepository.save(SLA.builder()
-                    .priority(Priority.HIGH)
-                    .resolutionTimeHours(4)
-                    .warningThresholdHours(2)
-                    .description("High impact issue with significant impairment (4h SLA)")
-                    .build());
-        }
-        if (!slaRepository.existsByPriority(Priority.MEDIUM)) {
-            slaRepository.save(SLA.builder()
-                    .priority(Priority.MEDIUM)
-                    .resolutionTimeHours(8)
-                    .warningThresholdHours(4)
-                    .description("Standard operational inquiry or software glitch (8h SLA)")
-                    .build());
-        }
-        if (!slaRepository.existsByPriority(Priority.LOW)) {
-            slaRepository.save(SLA.builder()
-                    .priority(Priority.LOW)
-                    .resolutionTimeHours(24)
-                    .warningThresholdHours(12)
-                    .description("Minor issue or non-urgent request (24h SLA)")
-                    .build());
-        }
+        initOrUpdateSlaRule(Priority.CRITICAL, 1, 2, 1, "Critical outage affecting business operations (1h Response / 2h Resolution SLA)");
+        initOrUpdateSlaRule(Priority.HIGH, 4, 24, 5, "High impact issue with significant impairment (4h Response / 24h Resolution SLA)");
+        initOrUpdateSlaRule(Priority.MEDIUM, 8, 48, 10, "Standard operational inquiry or software glitch (8h Response / 48h Resolution SLA)");
+        initOrUpdateSlaRule(Priority.LOW, 24, 72, 14, "Minor issue or non-urgent request (24h Response / 72h Resolution SLA)");
         log.info("SLA policy configurations verified.");
+    }
+
+    private void initOrUpdateSlaRule(Priority priority, int responseHours, int resolutionHours, int warningHours, String description) {
+        SLA sla = slaRepository.findByPriority(priority).orElse(null);
+        if (sla == null) {
+            slaRepository.save(SLA.builder()
+                    .priority(priority)
+                    .responseTimeHours(responseHours)
+                    .resolutionTimeHours(resolutionHours)
+                    .warningThresholdHours(warningHours)
+                    .description(description)
+                    .build());
+        } else {
+            sla.setResponseTimeHours(responseHours);
+            sla.setResolutionTimeHours(resolutionHours);
+            sla.setWarningThresholdHours(warningHours);
+            sla.setDescription(description);
+            slaRepository.save(sla);
+        }
     }
 
     private void initDepartmentsAndTeams() {

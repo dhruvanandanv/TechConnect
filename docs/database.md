@@ -56,10 +56,11 @@ Authenticated personnel across all roles.
 - `updated_at`: TIMESTAMP NOT NULL
 
 ### 2.5 `sla_rules`
-Configurable SLA resolution targets per priority level.
+Configurable SLA response and resolution targets per priority level.
 - `id`: BIGSERIAL PRIMARY KEY
 - `priority`: VARCHAR(20) UNIQUE NOT NULL (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) (Index: `idx_sla_priority`)
-- `resolution_time_hours`: INT NOT NULL
+- `response_time_hours`: INT NOT NULL (Maximum hours to first operational IT response)
+- `resolution_time_hours`: INT NOT NULL (Maximum hours to complete ticket resolution)
 - `warning_threshold_hours`: INT NOT NULL
 - `description`: VARCHAR(255)
 
@@ -75,8 +76,13 @@ Central transactional entity for IT incidents.
 - `assigned_engineer_id`: BIGINT REFERENCES `users(id)` (Index: `idx_ticket_assigned_engineer`)
 - `assigned_team_id`: BIGINT REFERENCES `teams(id)` (Index: `idx_ticket_assigned_team`)
 - `department_id`: BIGINT REFERENCES `departments(id)`
-- `sla_deadline`: TIMESTAMP (Index: `idx_ticket_sla_deadline`)
-- `resolved_at`: TIMESTAMP
+- `sla_id`: BIGINT REFERENCES `sla_rules(id)`
+- `response_deadline`: TIMESTAMP (Index: `idx_ticket_response_deadline`)
+- `responded_at`: TIMESTAMP (Index: `idx_ticket_responded_at`)
+- `sla_deadline`: TIMESTAMP (Resolution Deadline) (Index: `idx_ticket_sla_deadline`)
+- `resolved_at`: TIMESTAMP (Index: `idx_ticket_resolved_at`)
+- `sla_paused_at`: TIMESTAMP
+- `total_paused_duration_minutes`: BIGINT NOT NULL DEFAULT 0
 - `resolution_description`: TEXT
 - `created_at`: TIMESTAMP NOT NULL
 - `updated_at`: TIMESTAMP NOT NULL
@@ -241,4 +247,10 @@ The Ticket Management system ties together employees, IT staff, organization str
 9. **Ticket & Attachments (`TicketAttachment`) (`1-to-Many`, Cascade Delete)**:
    - Users can attach error logs, crash dumps, and screenshots to assist troubleshooting.
    - Foreign keys: `ticket_attachments.ticket_id` -> `tickets.id`, `ticket_attachments.uploaded_by_id` -> `users.id`.
+
+10. **Ticket & SLA Policy (`SLA`) (`Many-to-1`, Optional)**:
+    - When a ticket is created, the system matches its priority (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) against the active `sla_rules` configuration.
+    - The ticket references this policy to record the agreed first response time, resolution time, and warning threshold.
+    - Foreign key: `tickets.sla_id` -> `sla_rules.id`.
+
 

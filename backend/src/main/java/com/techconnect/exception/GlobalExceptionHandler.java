@@ -109,6 +109,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
+    @ExceptionHandler(SlaPolicyNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleSlaPolicyNotFoundException(
+            SlaPolicyNotFoundException ex, HttpServletRequest request) {
+        log.warn("SLA policy not found: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
     @ExceptionHandler(TicketAccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleTicketAccessDeniedException(
             TicketAccessDeniedException ex, HttpServletRequest request) {

@@ -43,4 +43,6 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
 
     @Query("SELECT t FROM Ticket t WHERE t.status NOT IN ('RESOLVED', 'CLOSED') AND t.slaDeadline BETWEEN :now AND :threshold")
     List<Ticket> findTicketsApproachingDeadline(@Param("now") LocalDateTime now, @Param("threshold") LocalDateTime threshold);
+
+    List<Ticket> findByStatusNot(TicketStatus status);
 }

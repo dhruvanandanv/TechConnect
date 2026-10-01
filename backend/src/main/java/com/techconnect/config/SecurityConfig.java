@@ -72,6 +72,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/admin/test")
                         .hasRole("ADMIN")
 
+                        // SLA Manager & Admin endpoints
+                        .requestMatchers(HttpMethod.GET, "/api/sla/breached", "/api/sla/summary")
+                        .hasAnyRole("MANAGER", "ADMIN")
+
                         // 3. All other /api endpoints require valid authentication
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().authenticated()

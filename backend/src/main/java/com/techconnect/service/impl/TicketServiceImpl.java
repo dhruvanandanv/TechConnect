@@ -12,6 +12,7 @@ import com.techconnect.exception.TicketAccessDeniedException;
 import com.techconnect.exception.TicketNotFoundException;
 import com.techconnect.mapper.TicketMapper;
 import com.techconnect.repository.*;
+import com.techconnect.service.SlaService;
 import com.techconnect.service.TicketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class TicketServiceImpl implements TicketService {
     private final TicketStatusHistoryRepository ticketStatusHistoryRepository;
     private final AuditLogRepository auditLogRepository;
     private final TicketMapper ticketMapper;
+    private final SlaService slaService;
 
     // Allowed status transitions map based on the ITIL/ITSM workflow
     private static final Map<TicketStatus, Set<TicketStatus>> ALLOWED_TRANSITIONS = Map.of(
@@ -73,6 +75,9 @@ public class TicketServiceImpl implements TicketService {
                 .createdBy(requester)
                 .department(department)
                 .build();
+
+        // Determine and attach SLA policy and deadlines
+        slaService.applySlaToNewTicket(ticket);
 
         Ticket savedTicket = ticketRepository.save(ticket);
 
@@ -271,6 +276,9 @@ public class TicketServiceImpl implements TicketService {
             ticket.setResolvedAt(null);
         }
 
+        // Trigger SLA state transitions (pause, resume, resolution milestone)
+        slaService.handleStatusTransition(ticket, currentStatus, targetStatus, currentUser);
+
         Ticket savedTicket = ticketRepository.save(ticket);
 
         // 4. Record status history
@@ -355,6 +363,9 @@ public class TicketServiceImpl implements TicketService {
             ticketStatusHistoryRepository.save(statusHistory);
         }
 
+        // Operational milestone: engineer assignment counts as first response
+        slaService.recordResponseMilestone(ticket, currentUser);
+
         Ticket savedTicket = ticketRepository.save(ticket);
 
         // Record historical assignment
@@ -397,6 +408,9 @@ public class TicketServiceImpl implements TicketService {
                 .build();
 
         TicketComment savedComment = ticketCommentRepository.save(comment);
+
+        // Operational milestone: staff comment on ticket counts as response
+        slaService.recordResponseMilestone(ticket, currentUser);
 
         recordAuditLog("COMMENT_ADDED", "Ticket", ticket.getId(), currentUser,
                 "Comment added (internal: " + isInternal + ")");

@@ -23,6 +23,10 @@ public class SLA {
     @Column(nullable = false, unique = true, length = 20)
     private Priority priority;
 
+    @Column(name = "response_time_hours", nullable = false)
+    @Builder.Default
+    private Integer responseTimeHours = 4;
+
     @Column(name = "resolution_time_hours", nullable = false)
     private Integer resolutionTimeHours;
 

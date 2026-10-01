@@ -20,7 +20,10 @@ import java.util.List;
     @Index(name = "idx_ticket_created_by", columnList = "created_by_id"),
     @Index(name = "idx_ticket_assigned_engineer", columnList = "assigned_engineer_id"),
     @Index(name = "idx_ticket_assigned_team", columnList = "assigned_team_id"),
-    @Index(name = "idx_ticket_sla_deadline", columnList = "sla_deadline")
+    @Index(name = "idx_ticket_sla_deadline", columnList = "sla_deadline"),
+    @Index(name = "idx_ticket_response_deadline", columnList = "response_deadline"),
+    @Index(name = "idx_ticket_responded_at", columnList = "responded_at"),
+    @Index(name = "idx_ticket_resolved_at", columnList = "resolved_at")
 })
 @Getter
 @Setter
@@ -68,11 +71,28 @@ public class Ticket {
     @JoinColumn(name = "department_id")
     private Department department;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "sla_id")
+    private SLA sla;
+
+    @Column(name = "response_deadline")
+    private LocalDateTime responseDeadline;
+
+    @Column(name = "responded_at")
+    private LocalDateTime respondedAt;
+
     @Column(name = "sla_deadline")
     private LocalDateTime slaDeadline;
 
     @Column(name = "resolved_at")
     private LocalDateTime resolvedAt;
+
+    @Column(name = "sla_paused_at")
+    private LocalDateTime slaPausedAt;
+
+    @Column(name = "total_paused_duration_minutes")
+    @Builder.Default
+    private Long totalPausedDurationMinutes = 0L;
 
     @Column(name = "resolution_description", columnDefinition = "TEXT")
     private String resolutionDescription;

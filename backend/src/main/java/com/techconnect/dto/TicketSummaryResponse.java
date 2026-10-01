@@ -32,6 +32,7 @@ public class TicketSummaryResponse {
     private String teamName;
     private String departmentName;
 
+    private LocalDateTime responseDeadline;
     private LocalDateTime slaDeadline;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -575,3 +575,109 @@ Arbitrary jumps (e.g. `OPEN` ➔ `CLOSED`) are strictly rejected with `400 Bad R
 - **Authentication**: Bearer JWT
 - **Response (`200 OK`)**: Array of `TicketAssignmentResponse` objects.
 
+---
+
+## 5. SLA Management & Automation Engine APIs (Phase 6)
+
+### 5.1 Overview & SLA Policy Rules
+
+Service Level Agreements (SLAs) enforce operational milestones for IT incident resolution. Policies are configured dynamically per priority:
+
+| Priority | First Response SLA | Resolution SLA | Warning Threshold (At Risk) |
+| :--- | :--- | :--- | :--- |
+| **`CRITICAL`** | **1 Hour** | **2 Hours** | Remaining time ≤ 1h (or ≤ 20%) |
+| **`HIGH`** | **4 Hours** | **24 Hours** | Remaining time ≤ 5h (or ≤ 20%) |
+| **`MEDIUM`** | **8 Hours** | **48 Hours** | Remaining time ≤ 10h (or ≤ 20%) |
+| **`LOW`** | **24 Hours** | **72 Hours** | Remaining time ≤ 14h (or ≤ 20%) |
+
+#### SLA Statuses:
+- `ON_TRACK`: More than 20% of policy duration remains.
+- `AT_RISK`: Less than or equal to 20% of policy duration remains.
+- `BREACHED`: Milestone deadline has passed without completion.
+- `PAUSED`: Timer is temporarily frozen while awaiting user clarification (`WAITING_FOR_USER`).
+- `COMPLETED`: Milestone was successfully achieved within deadline.
+
+---
+
+### 5.2 SLA Endpoints
+
+#### `GET /api/tickets/{id}/sla`
+- **Description**: Returns dynamic SLA calculations, remaining times, and objective states for a specific ticket.
+- **Authentication**: Bearer JWT
+- **Authorization**:
+  - `ROLE_EMPLOYEE`: Permitted only for tickets they requested.
+  - `ROLE_ENGINEER`: Permitted for tickets assigned to them.
+  - `ROLE_MANAGER`: Permitted for tickets belonging to their team/department.
+  - `ROLE_ADMIN`: Permitted for all enterprise tickets.
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "ticketId": 101,
+    "priority": "HIGH",
+    "status": "IN_PROGRESS",
+    "responseDeadline": "2026-10-01T23:30:00",
+    "resolutionDeadline": "2026-10-02T19:30:00",
+    "responseStatus": "COMPLETED",
+    "resolutionStatus": "ON_TRACK",
+    "overallStatus": "ON_TRACK",
+    "respondedAt": "2026-10-01T20:15:00",
+    "resolvedAt": null,
+    "remainingResponseMinutes": 0,
+    "remainingResolutionMinutes": 1395,
+    "isPaused": false,
+    "slaPausedAt": null,
+    "totalPausedDurationMinutes": 0
+  }
+  ```
+- **Error Codes**:
+  - `403 Forbidden`: Authenticated user is not authorized to inspect this ticket's SLA.
+  - `404 Not Found`: Ticket with specified ID does not exist.
+
+---
+
+#### `GET /api/sla/breached`
+- **Description**: Returns all currently breached tickets across the enterprise (where either response or resolution SLA has failed).
+- **Authentication**: Bearer JWT (`ROLE_MANAGER`, `ROLE_ADMIN`)
+- **Response (`200 OK`)**:
+  ```json
+  [
+    {
+      "ticketId": 105,
+      "title": "VPN Gateway authentication failure",
+      "priority": "CRITICAL",
+      "status": "OPEN",
+      "responseDeadline": "2026-10-01T15:00:00",
+      "resolutionDeadline": "2026-10-01T17:00:00",
+      "responseStatus": "BREACHED",
+      "resolutionStatus": "BREACHED",
+      "remainingResolutionMinutes": 0,
+      "breachedAt": "2026-10-01T15:00:00",
+      "breachType": "BOTH"
+    }
+  ]
+  ```
+- **Error Codes**:
+  - `403 Forbidden`: Access denied for `ROLE_EMPLOYEE` or `ROLE_ENGINEER`.
+
+---
+
+#### `GET /api/sla/summary`
+- **Description**: Aggregates enterprise-wide SLA performance metrics for executive and operational dashboards.
+- **Authentication**: Bearer JWT (`ROLE_MANAGER`, `ROLE_ADMIN`)
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "totalActiveTickets": 45,
+    "onTrack": 35,
+    "atRisk": 6,
+    "breached": 4,
+    "responseSlaMet": 82,
+    "responseSlaBreached": 7,
+    "resolutionSlaMet": 75,
+    "resolutionSlaBreached": 5
+  }
+  ```
+- **Error Codes**:
+  - `403 Forbidden`: Access denied for non-managerial/non-admin staff.
+
+
