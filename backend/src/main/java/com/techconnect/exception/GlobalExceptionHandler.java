@@ -95,6 +95,90 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
     }
 
+    @ExceptionHandler(TicketNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleTicketNotFoundException(
+            TicketNotFoundException ex, HttpServletRequest request) {
+        log.warn("Ticket not found: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    @ExceptionHandler(TicketAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleTicketAccessDeniedException(
+            TicketAccessDeniedException ex, HttpServletRequest request) {
+        log.warn("Ticket access denied: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(InvalidTicketStatusTransitionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTicketStatusTransitionException(
+            InvalidTicketStatusTransitionException ex, HttpServletRequest request) {
+        log.warn("Invalid ticket status transition: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(InvalidTicketAssignmentException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidTicketAssignmentException(
+            InvalidTicketAssignmentException ex, HttpServletRequest request) {
+        log.warn("Invalid ticket assignment: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleSpringAccessDeniedException(
+            org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
+        log.warn("Spring Security access denied: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message("Access is denied: insufficient role privileges to access this resource")
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.http.converter.HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMessageNotReadableException(
+            org.springframework.http.converter.HttpMessageNotReadableException ex, HttpServletRequest request) {
+        log.warn("Malformed JSON or invalid enum value: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message("Invalid request payload or malformed enumeration value")
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
             IllegalArgumentException ex, HttpServletRequest request) {

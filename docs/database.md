@@ -165,3 +165,80 @@ The application automatically ensures the following baseline data is initialized
   - IT Operations (`IT-OPS`) -> Network Support, Hardware & Workplace
   - Information Security (`INFOSEC`) -> Identity & Access
 - **Default Accounts**: Seeded administrative, managerial, engineering, and employee test accounts.
+
+---
+
+## 4. Ticket Domain Entity Relationships (Phase 5)
+
+The Ticket Management system ties together employees, IT staff, organization structures, and audit histories. Below is a beginner-friendly explanation of how the core entities relate:
+
+```
+┌──────────────┐         1:N         ┌──────────────┐
+│  Department  ├────────────────────►│     Team     │
+└──────┬───────┘                     └──────┬───────┘
+       │                                    │
+       │ 1:N                          1:N   │
+       ▼                                    ▼
+┌──────────────┐         1:N (Requester)    ┌──────────────┐
+│     User     ├───────────────────────────►│    Ticket    │
+│              ├───────────────────────────►│              │
+└──────┬───────┘         1:N (Engineer)     └──────┬───────┘
+       │                                           │
+       │                                     1:N   │ (Cascade Delete)
+       │         ┌─────────────────────────────────┼─────────────────────────────────┐
+       │         │                                 │                                 │
+       ▼         ▼                                 ▼                                 ▼
+┌──────────────────────┐        ┌──────────────────────┐        ┌─────────────────────────┐
+│    TicketComment     │        │   TicketAssignment   │        │   TicketStatusHistory   │
+│ (author_id -> User)  │        │(engineer_id -> User) │        │ (changed_by -> User)    │
+│(ticket_id -> Ticket) │        │ (ticket_id -> Ticket)│        │ (ticket_id -> Ticket)   │
+└──────────────────────┘        └──────────────────────┘        └─────────────────────────┘
+```
+
+### 4.1 Relationship Breakdown in Plain English
+
+1. **Department & Team (`1-to-Many`)**:
+   - A **Department** represents a top-level enterprise division (e.g., *IT Operations*, *Finance*).
+   - Each Department contains multiple specialized **Teams** (e.g., *Network Support*, *Desktop Engineering*).
+   - Foreign key: `teams.department_id` -> `departments.id`.
+
+2. **User & Organization (`Many-to-1`)**:
+   - Every **User** belongs to an optional Department and an optional functional Team (especially relevant for IT Engineers who belong to operational support teams).
+   - Foreign keys: `users.department_id` -> `departments.id`, `users.team_id` -> `teams.id`.
+
+3. **Ticket & Requester (`User`) (`Many-to-1`)**:
+   - An employee creates a ticket when they have an IT problem. The employee is the **Requester** (`created_by_id`).
+   - One user can create many tickets over time, but each ticket has exactly one original requester.
+   - Foreign key: `tickets.created_by_id` -> `users.id`.
+
+4. **Ticket & Assigned Engineer (`User`) (`Many-to-1`, Optional)**:
+   - When a ticket is triaged or accepted, an IT Engineer (`ROLE_ENGINEER`) is assigned to resolve the issue (`assigned_engineer_id`).
+   - When the ticket is newly created in `OPEN` status, this field is `NULL`.
+   - One engineer can be actively working on multiple assigned tickets simultaneously.
+   - Foreign key: `tickets.assigned_engineer_id` -> `users.id`.
+
+5. **Ticket & Assigned Team (`Team`) (`Many-to-1`, Optional)**:
+   - Tickets can be routed to a specific support team (e.g., *Network Support*) even before an individual engineer is assigned, or to indicate team queue ownership.
+   - Foreign key: `tickets.assigned_team_id` -> `teams.id`.
+
+6. **Ticket & Comments (`TicketComment`) (`1-to-Many`, Cascade Delete)**:
+   - Requester, assigned engineers, and managers can exchange messages and progress notes on a ticket.
+   - Each comment stores its text, the authoring user, whether it is an internal IT-only note (`is_internal = true`), and the timestamp.
+   - If a ticket is deleted, all its associated comments are deleted automatically (`ON DELETE CASCADE`).
+   - Foreign keys: `ticket_comments.ticket_id` -> `tickets.id`, `ticket_comments.author_id` -> `users.id`.
+
+7. **Ticket & Assignment History (`TicketAssignment`) (`1-to-Many`, Cascade Delete)**:
+   - Tickets frequently get escalated or reassigned from Level 1 helpdesk to Tier 2/3 engineering.
+   - Instead of overwriting who worked on a ticket, every dispatch creates an immutable `TicketAssignment` log containing who made the assignment (`assigned_by_id`), who received it (`assigned_engineer_id`), what team it was assigned to (`assigned_team_id`), and dispatch notes.
+   - Foreign keys: `ticket_assignments.ticket_id` -> `tickets.id`, `ticket_assignments.assigned_by_id` -> `users.id`, `ticket_assignments.assigned_engineer_id` -> `users.id`.
+
+8. **Ticket & Status History (`TicketStatusHistory`) (`1-to-Many`, Cascade Delete)**:
+   - The ticket lifecycle tracks state transitions (`OPEN` -> `ASSIGNED` -> `IN_PROGRESS` -> `RESOLVED` -> `CLOSED`).
+   - Every valid transition logs the previous status (`old_status`), new status (`new_status`), the user who triggered the change (`changed_by_id`), an optional reason or resolution description, and the exact timestamp.
+   - This history is critical for Phase 6 SLA calculation (measuring how long a ticket remained in each state).
+   - Foreign keys: `ticket_status_history.ticket_id` -> `tickets.id`, `ticket_status_history.changed_by_id` -> `users.id`.
+
+9. **Ticket & Attachments (`TicketAttachment`) (`1-to-Many`, Cascade Delete)**:
+   - Users can attach error logs, crash dumps, and screenshots to assist troubleshooting.
+   - Foreign keys: `ticket_attachments.ticket_id` -> `tickets.id`, `ticket_attachments.uploaded_by_id` -> `users.id`.
+

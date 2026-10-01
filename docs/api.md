@@ -300,3 +300,278 @@ Returned when the user is properly authenticated, but their assigned role does n
   "path": "/api/admin/test"
 }
 ```
+
+---
+
+## 4. Ticket Management System APIs (Phase 5)
+
+### 4.1 Overview & Ticket Workflow State Machine
+
+The TechConnect Ticket Management System implements a strict ITIL-aligned status lifecycle with deterministic transitions and role-based guardrails:
+
+```
+[ OPEN ]
+   │
+   ▼
+[ ASSIGNED ]
+   │
+   ▼
+[ IN_PROGRESS ] ──────────► [ ESCALATED ]
+   │      ▲                       │
+   │      │                       ▼
+   │  [ WAITING_FOR_USER ]    [ MANAGER_REVIEW ]
+   │
+   ▼
+[ RESOLVED ]
+   │
+   ▼
+[ CLOSED ]
+```
+
+#### State Transition Rules:
+- `OPEN` ➔ `ASSIGNED`: Occurs upon engineer assignment.
+- `ASSIGNED` ➔ `IN_PROGRESS`: Engineer begins work.
+- `IN_PROGRESS` ➔ `WAITING_FOR_USER`: Waiting for employee clarification/logs.
+- `WAITING_FOR_USER` ➔ `IN_PROGRESS`: Work resumes upon feedback.
+- `IN_PROGRESS` ➔ `RESOLVED`: Engineer provides resolution description.
+- `RESOLVED` ➔ `CLOSED`: Requester (Employee) or Manager/Admin confirms satisfaction and closes ticket.
+- `IN_PROGRESS` ➔ `ESCALATED`: Escalation requested.
+- `ESCALATED` ➔ `MANAGER_REVIEW`: Manager intervenes and reviews escalation.
+
+Arbitrary jumps (e.g. `OPEN` ➔ `CLOSED`) are strictly rejected with `400 Bad Request` or `403 Forbidden`.
+
+---
+
+### 4.2 Role & Ownership Visibility Matrix
+
+| Role | Ticket Creation | Ticket Visibility (`/my` & `/{id}`) | Permitted Updates | Status Transitions | Assignment | Comments |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **`ROLE_EMPLOYEE`** | Yes (own tickets) | Only tickets requested by themselves | Title, description, category, priority (only while `OPEN`) | `RESOLVED` ➔ `CLOSED` (own tickets) | No | Public comments on own tickets |
+| **`ROLE_ENGINEER`** | Yes | Tickets assigned to them | Operational fields (resolution description) | `ASSIGNED`, `IN_PROGRESS`, `WAITING_FOR_USER`, `RESOLVED`, `ESCALATED` (assigned tickets) | Self-assignment (if unassigned) | Public & internal notes on assigned tickets |
+| **`ROLE_MANAGER`** | Yes | Tickets belonging to their team / department | Operational & managerial fields | Operational + `MANAGER_REVIEW`, `CLOSED` on team tickets | Assign/reassign engineers within team | Public & internal notes on team tickets |
+| **`ROLE_ADMIN`** | Yes | All tickets across enterprise | Full update privileges | All valid workflow transitions across enterprise | Full assignment across all teams/engineers | Full comment access on all tickets |
+
+---
+
+### 4.3 Endpoints Reference
+
+#### `POST /api/tickets`
+- **Description**: Creates a new service ticket. Requester is automatically resolved from the authenticated JWT `SecurityContext`. Initial status is always `OPEN`.
+- **Authentication**: Bearer JWT (`ROLE_EMPLOYEE`, `ROLE_ENGINEER`, `ROLE_MANAGER`, `ROLE_ADMIN`)
+- **Validation**:
+  - `title`: Required, 3–255 characters.
+  - `description`: Required, non-empty.
+  - `category`: Required (`HARDWARE`, `SOFTWARE`, `NETWORK`, `SECURITY`, `ACCESS_MANAGEMENT`, `EMAIL`, `VPN`, `OTHER`).
+  - `priority`: Required (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
+- **Request Body**:
+  ```json
+  {
+    "title": "Cannot connect to Cisco AnyConnect VPN",
+    "description": "Getting error 442 failed to enable virtual adapter on Windows 11.",
+    "category": "VPN",
+    "priority": "HIGH"
+  }
+  ```
+- **Response (`201 Created`)**:
+  ```json
+  {
+    "id": 101,
+    "title": "Cannot connect to Cisco AnyConnect VPN",
+    "description": "Getting error 442 failed to enable virtual adapter on Windows 11.",
+    "category": "VPN",
+    "priority": "HIGH",
+    "status": "OPEN",
+    "requester": {
+      "id": 4,
+      "name": "John Doe",
+      "email": "employee@techconnect.com",
+      "role": "ROLE_EMPLOYEE"
+    },
+    "assignedEngineer": null,
+    "assignedTeam": null,
+    "slaDeadline": "2026-10-01T23:30:00",
+    "resolvedAt": null,
+    "resolutionDescription": null,
+    "createdAt": "2026-10-01T19:30:00",
+    "updatedAt": "2026-10-01T19:30:00"
+  }
+  ```
+
+---
+
+#### `GET /api/tickets/my`
+- **Description**: Retrieves a paginated list of tickets scoped to the authenticated caller's role and ownership.
+  - `ROLE_EMPLOYEE`: Returns tickets created by the caller.
+  - `ROLE_ENGINEER`: Returns tickets assigned to the caller.
+  - `ROLE_MANAGER`: Returns tickets assigned to the manager's team.
+  - `ROLE_ADMIN`: Returns all tickets.
+- **Authentication**: Bearer JWT
+- **Query Parameters**:
+  - `page`: Page index (zero-based, default `0`).
+  - `size`: Page size (default `10`, max `100`).
+  - `sort`: Field and direction, e.g., `createdAt,desc` or `priority,asc` (default: `createdAt,desc`).
+  - `status`: Optional filter by `TicketStatus` enum (e.g., `OPEN`, `IN_PROGRESS`).
+  - `priority`: Optional filter by `Priority` enum (e.g., `HIGH`, `CRITICAL`).
+  - `category`: Optional filter by `Category` enum (e.g., `VPN`, `HARDWARE`).
+- **Example Request**:
+  ```http
+  GET /api/tickets/my?page=0&size=10&sort=createdAt,desc&status=OPEN
+  ```
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "content": [
+      {
+        "id": 101,
+        "title": "Cannot connect to Cisco AnyConnect VPN",
+        "category": "VPN",
+        "priority": "HIGH",
+        "status": "OPEN",
+        "requesterName": "John Doe",
+        "assignedEngineerName": null,
+        "teamName": null,
+        "slaDeadline": "2026-10-01T23:30:00",
+        "createdAt": "2026-10-01T19:30:00"
+      }
+    ],
+    "page": 0,
+    "size": 10,
+    "totalElements": 1,
+    "totalPages": 1,
+    "last": true
+  }
+  ```
+
+---
+
+#### `GET /api/tickets/{id}`
+- **Description**: Retrieves detailed information for a specific ticket. Enforces ownership/role checks.
+- **Authentication**: Bearer JWT
+- **Response (`200 OK`)**: Full `TicketResponse` object.
+- **Error Codes**:
+  - `403 Forbidden`: Authenticated user is not authorized to view this ticket.
+  - `404 Not Found`: Ticket with the specified ID does not exist.
+
+---
+
+#### `PATCH /api/tickets/{id}`
+- **Description**: Partially updates permitted fields on an existing ticket.
+  - Employees can modify `title`, `description`, `category`, and `priority` only when ticket is in `OPEN` status.
+  - Engineers, Managers, and Admins can update ticket attributes according to their operational scopes.
+- **Authentication**: Bearer JWT
+- **Request Body**:
+  ```json
+  {
+    "title": "Cannot connect to Cisco VPN after OS update",
+    "description": "Updated details: Issue started after KB5034441 update.",
+    "category": "VPN",
+    "priority": "CRITICAL"
+  }
+  ```
+- **Response (`200 OK`)**: Updated `TicketResponse`.
+
+---
+
+#### `PATCH /api/tickets/{id}/status`
+- **Description**: Progresses the ticket lifecycle through allowed workflow state transitions. Automatically records a new `TicketStatusHistory` audit record.
+- **Authentication**: Bearer JWT
+- **Request Body**:
+  ```json
+  {
+    "status": "IN_PROGRESS",
+    "reason": "Engineer has begun adapter diagnostic tests",
+    "resolutionDescription": null
+  }
+  ```
+- **Response (`200 OK`)**: Updated `TicketResponse` reflecting the new status and resolution timestamps (if resolved).
+- **Error Codes**:
+  - `400 Bad Request`: Invalid transition path (e.g., `OPEN` ➔ `CLOSED`).
+  - `403 Forbidden`: Caller role not authorized for this transition.
+
+---
+
+#### `PATCH /api/tickets/{id}/assignment`
+- **Description**: Assigns or reassigns an engineer and/or team to a ticket. Automatically updates status to `ASSIGNED` if ticket was `OPEN`, and logs an immutable `TicketAssignment` history event.
+- **Authentication**: Bearer JWT (`ROLE_MANAGER`, `ROLE_ADMIN`, or `ROLE_ENGINEER` self-assign)
+- **Validation**:
+  - Assigned user must exist and have the `ROLE_ENGINEER` authority.
+  - Assigned engineer must be active (`isActive = true`).
+- **Request Body**:
+  ```json
+  {
+    "engineerId": 2,
+    "teamId": 1,
+    "notes": "Assigned to Network Operations tier 2"
+  }
+  ```
+- **Response (`200 OK`)**: Updated `TicketResponse` with `assignedEngineer` populated and status set to `ASSIGNED`.
+
+---
+
+#### `POST /api/tickets/{id}/comments`
+- **Description**: Appends a comment or technical note to a ticket.
+  - `isInternal = true`: Internal technical notes visible only to engineers, managers, and admins. Automatically forced to `false` if submitted by standard employees.
+- **Authentication**: Bearer JWT (Must have access to the ticket)
+- **Request Body**:
+  ```json
+  {
+    "content": "Rebooted virtual TAP adapter driver; testing handshake now.",
+    "isInternal": true
+  }
+  ```
+- **Response (`201 Created`)**:
+  ```json
+  {
+    "id": 55,
+    "ticketId": 101,
+    "author": {
+      "id": 2,
+      "name": "Jane Engineer",
+      "email": "engineer@techconnect.com",
+      "role": "ROLE_ENGINEER"
+    },
+    "content": "Rebooted virtual TAP adapter driver; testing handshake now.",
+    "isInternal": true,
+    "createdAt": "2026-10-01T20:15:00"
+  }
+  ```
+
+---
+
+#### `GET /api/tickets/{id}/comments`
+- **Description**: Lists comments for a ticket. Non-internal staff (`ROLE_EMPLOYEE`) automatically receive only public comments (`isInternal = false`).
+- **Authentication**: Bearer JWT (Authorized users)
+- **Response (`200 OK`)**: Array of `TicketCommentResponse` objects.
+
+---
+
+#### `GET /api/tickets/{id}/history`
+- **Description**: Retrieves the complete audit history of all status changes for the ticket.
+- **Authentication**: Bearer JWT
+- **Response (`200 OK`)**:
+  ```json
+  [
+    {
+      "id": 12,
+      "ticketId": 101,
+      "oldStatus": "OPEN",
+      "newStatus": "ASSIGNED",
+      "changedBy": {
+        "id": 3,
+        "name": "Sarah Manager",
+        "email": "manager@techconnect.com",
+        "role": "ROLE_MANAGER"
+      },
+      "changeReason": "Assigned to engineer Jane Engineer",
+      "changedAt": "2026-10-01T19:45:00"
+    }
+  ]
+  ```
+
+---
+
+#### `GET /api/tickets/{id}/assignments`
+- **Description**: Retrieves the historical timeline of engineer and team dispatches for the ticket.
+- **Authentication**: Bearer JWT
+- **Response (`200 OK`)**: Array of `TicketAssignmentResponse` objects.
+

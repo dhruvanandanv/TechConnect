@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
     "name": "TechConnect ITSM API",
-    "description": "Postman Collection for TechConnect AI-Powered Enterprise IT Service Management Platform (Phase 4: JWT Authentication & Role-Based Authorization).",
+    "description": "Postman Collection for TechConnect AI-Powered Enterprise IT Service Management Platform (Phases 1 - 5).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -14,6 +14,11 @@
     {
       "key": "jwt",
       "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ticketId",
+      "value": "1",
       "type": "string"
     }
   ],
@@ -62,28 +67,6 @@
           }
         },
         {
-          "name": "Register User - Role Escalation Rejected",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Attacker User\",\n  \"email\": \"attacker@example.com\",\n  \"password\": \"UserSecurePass123!\",\n  \"role\": \"ROLE_ADMIN\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/register",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "register"]
-            },
-            "description": "Verifies that public registration strictly blocks self-assignment of administrative roles (returns 400 Bad Request)."
-          }
-        },
-        {
           "name": "Login - Employee (Sets {{jwt}})",
           "event": [
             {
@@ -117,7 +100,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "login"]
             },
-            "description": "Authenticates as an Employee and automatically stores the returned JWT into the collection variable {{jwt}}."
+            "description": "Authenticates as Employee and sets {{jwt}}."
           }
         },
         {
@@ -154,7 +137,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "login"]
             },
-            "description": "Authenticates as an Engineer and saves the returned JWT into the collection variable {{jwt}}."
+            "description": "Authenticates as Engineer and sets {{jwt}}."
           }
         },
         {
@@ -191,7 +174,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "login"]
             },
-            "description": "Authenticates as a Manager and saves the returned JWT into the collection variable {{jwt}}."
+            "description": "Authenticates as Manager and sets {{jwt}}."
           }
         },
         {
@@ -228,14 +211,38 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "login"]
             },
-            "description": "Authenticates as an Administrator and saves the returned JWT into the collection variable {{jwt}}."
+            "description": "Authenticates as Admin and sets {{jwt}}."
           }
-        },
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "item": [
         {
-          "name": "Login - Invalid Credentials",
+          "name": "Create Ticket",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.id) {",
+                  "    pm.collectionVariables.set(\"ticketId\", jsonData.id.toString());",
+                  "    console.log(\"Saved created ticket ID to {{ticketId}}\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
               {
                 "key": "Content-Type",
                 "value": "application/json"
@@ -243,14 +250,252 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"employee@techconnect.com\",\n  \"password\": \"WrongPassword!\"\n}"
+              "raw": "{\n  \"title\": \"VPN connection drops unexpectedly\",\n  \"description\": \"Every 10-15 minutes the Cisco AnyConnect VPN disconnects when working remotely.\",\n  \"category\": \"VPN\",\n  \"priority\": \"HIGH\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/auth/login",
+              "raw": "{{baseUrl}}/tickets",
               "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "path": ["tickets"]
             },
-            "description": "Rejects invalid credentials with 401 Unauthorized."
+            "description": "Creates a new ticket in OPEN status. Requester identity is automatically derived from the authenticated JWT."
+          }
+        },
+        {
+          "name": "Get My Tickets (Paginated & Filtered)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/my?page=0&size=10&sort=createdAt,desc",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "my"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "0"
+                },
+                {
+                  "key": "size",
+                  "value": "10"
+                },
+                {
+                  "key": "sort",
+                  "value": "createdAt,desc"
+                },
+                {
+                  "key": "status",
+                  "value": "OPEN",
+                  "disabled": true
+                },
+                {
+                  "key": "priority",
+                  "value": "HIGH",
+                  "disabled": true
+                },
+                {
+                  "key": "category",
+                  "value": "VPN",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns role-scoped paginated tickets (Employees see created tickets; Engineers see assigned tickets; Managers see team tickets; Admins see all tickets)."
+          }
+        },
+        {
+          "name": "Get Ticket By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "{{ticketId}}"]
+            },
+            "description": "Retrieves comprehensive ticket details. Subject to role and ownership authorization."
+          }
+        },
+        {
+          "name": "Update Ticket Details",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"VPN connection drops unexpectedly on macOS Sequoia\",\n  \"priority\": \"CRITICAL\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "{{ticketId}}"]
+            },
+            "description": "Updates permitted ticket fields. Employees can only update OPEN tickets; Engineers/Managers/Admins have role-scoped permissions."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Status",
+      "item": [
+        {
+          "name": "Change Ticket Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"IN_PROGRESS\",\n  \"reason\": \"Investigating gateway logs\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "status"]
+            },
+            "description": "Transitions ticket status according to the valid workflow state machine. Generates TicketStatusHistory and AuditLog."
+          }
+        },
+        {
+          "name": "Get Ticket Status History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/history",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "history"]
+            },
+            "description": "Returns full chronological timeline of status transitions for the specified ticket."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Assignments",
+      "item": [
+        {
+          "name": "Assign Engineer",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"engineerId\": 2,\n  \"notes\": \"Assigned to network specialist for triage\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/assignment",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "assignment"]
+            },
+            "description": "Assigns an IT engineer to the ticket. Transitions ticket to ASSIGNED if currently OPEN. Accessible by Managers, Admins, and Engineers (self-assignment)."
+          }
+        },
+        {
+          "name": "Get Ticket Assignment History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/assignments",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "assignments"]
+            },
+            "description": "Returns audit trail of past engineer and team assignments for this ticket."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Comments",
+      "item": [
+        {
+          "name": "Add Comment to Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"I have verified that restarting the gateway resolved the issue.\",\n  \"isInternal\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/comments",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "comments"]
+            },
+            "description": "Adds a comment to the ticket. Employees can only add public comments. Internal comments are restricted to IT staff."
+          }
+        },
+        {
+          "name": "Get Ticket Comments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/tickets/{{ticketId}}/comments",
+              "host": ["{{baseUrl}}"],
+              "path": ["tickets", "{{ticketId}}", "comments"]
+            },
+            "description": "Returns chronological comments for the ticket. Employees receive only public comments; staff receive public and internal comments."
           }
         }
       ]
@@ -272,8 +517,7 @@
               "raw": "{{baseUrl}}/employee/test",
               "host": ["{{baseUrl}}"],
               "path": ["employee", "test"]
-            },
-            "description": "Accessible by EMPLOYEE, ENGINEER, MANAGER, and ADMIN. Returns 200 OK if authenticated with any of these roles, or 401 if unauthenticated."
+            }
           }
         },
         {
@@ -290,8 +534,7 @@
               "raw": "{{baseUrl}}/engineer/test",
               "host": ["{{baseUrl}}"],
               "path": ["engineer", "test"]
-            },
-            "description": "Accessible by ENGINEER and ADMIN. Returns 200 OK for Engineer/Admin; returns 403 Forbidden for Employee or Manager."
+            }
           }
         },
         {
@@ -308,8 +551,7 @@
               "raw": "{{baseUrl}}/manager/test",
               "host": ["{{baseUrl}}"],
               "path": ["manager", "test"]
-            },
-            "description": "Accessible by MANAGER and ADMIN. Returns 200 OK for Manager/Admin; returns 403 Forbidden for Employee or Engineer."
+            }
           }
         },
         {
@@ -326,8 +568,7 @@
               "raw": "{{baseUrl}}/admin/test",
               "host": ["{{baseUrl}}"],
               "path": ["admin", "test"]
-            },
-            "description": "Accessible by ADMIN only. Returns 200 OK for Admin; returns 403 Forbidden for Employee, Engineer, or Manager."
+            }
           }
         }
       ]
