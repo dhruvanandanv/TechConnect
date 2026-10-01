@@ -22,10 +22,10 @@ public class DatabaseInitializer implements CommandLineRunner {
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
 
-    @Value("${app.seed.dev-users:true}")
+    @Value("${app.seed.dev-users:false}")
     private boolean seedDevUsers;
 
-    @Value("${app.seed.dev-password:TechConnectDev@123}")
+    @Value("${app.seed.dev-password:}")
     private String devInitialPassword;
 
     @Override
@@ -140,6 +140,13 @@ public class DatabaseInitializer implements CommandLineRunner {
         if (!seedDevUsers) {
             log.info("Development user seeding is disabled (app.seed.dev-users=false). Skipping user seeding.");
             return;
+        }
+
+        if (devInitialPassword == null || devInitialPassword.trim().isEmpty()) {
+            throw new IllegalStateException(
+                "Development user seeding is enabled (app.seed.dev-users=true), but TECHCONNECT_DEV_PASSWORD is not set or is empty. " +
+                "Please provide a development password via the TECHCONNECT_DEV_PASSWORD environment variable or disable development seeding."
+            );
         }
 
         log.warn("SECURITY NOTICE: Seeding development user accounts with externalized dev password. " +
