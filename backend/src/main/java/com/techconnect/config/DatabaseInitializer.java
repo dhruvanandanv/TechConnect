@@ -6,6 +6,7 @@ import com.techconnect.entity.enums.RoleName;
 import com.techconnect.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,12 @@ public class DatabaseInitializer implements CommandLineRunner {
     private final DepartmentRepository departmentRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
+
+    @Value("${app.seed.dev-users:true}")
+    private boolean seedDevUsers;
+
+    @Value("${app.seed.dev-password:TechConnectDev@123}")
+    private String devInitialPassword;
 
     @Override
     @Transactional
@@ -130,6 +137,14 @@ public class DatabaseInitializer implements CommandLineRunner {
     }
 
     private void initDefaultUsers() {
+        if (!seedDevUsers) {
+            log.info("Development user seeding is disabled (app.seed.dev-users=false). Skipping user seeding.");
+            return;
+        }
+
+        log.warn("SECURITY NOTICE: Seeding development user accounts with externalized dev password. " +
+                "Ensure app.seed.dev-users=false in production environments.");
+
         Role adminRole = roleRepository.findByName(RoleName.ROLE_ADMIN).orElse(null);
         Role engineerRole = roleRepository.findByName(RoleName.ROLE_ENGINEER).orElse(null);
         Role managerRole = roleRepository.findByName(RoleName.ROLE_MANAGER).orElse(null);
@@ -138,57 +153,59 @@ public class DatabaseInitializer implements CommandLineRunner {
         Department itDept = departmentRepository.findByCode("IT-OPS").orElse(null);
         Team networkTeam = teamRepository.findByName("Network Support").orElse(null);
 
+        String initialPasswordHash = "{noop}" + devInitialPassword;
+
         // Seed Admin user if not exists
         if (!userRepository.existsByEmail("admin@techconnect.com") && adminRole != null) {
             userRepository.save(User.builder()
                     .email("admin@techconnect.com")
-                    .password("{noop}Admin@1234") // Placed for initial bootstrap, replaced in Auth phase
+                    .password(initialPasswordHash)
                     .firstName("System")
                     .lastName("Administrator")
                     .role(adminRole)
                     .department(itDept)
                     .build());
-            log.info("Seeded default admin user: admin@techconnect.com");
+            log.info("Seeded development admin user: admin@techconnect.com");
         }
 
         // Seed Engineer user if not exists
         if (!userRepository.existsByEmail("engineer@techconnect.com") && engineerRole != null) {
             userRepository.save(User.builder()
                     .email("engineer@techconnect.com")
-                    .password("{noop}Engineer@1234")
+                    .password(initialPasswordHash)
                     .firstName("Alex")
                     .lastName("Engineer")
                     .role(engineerRole)
                     .department(itDept)
                     .team(networkTeam)
                     .build());
-            log.info("Seeded default engineer user: engineer@techconnect.com");
+            log.info("Seeded development engineer user: engineer@techconnect.com");
         }
 
         // Seed Manager user if not exists
         if (!userRepository.existsByEmail("manager@techconnect.com") && managerRole != null) {
             userRepository.save(User.builder()
                     .email("manager@techconnect.com")
-                    .password("{noop}Manager@1234")
+                    .password(initialPasswordHash)
                     .firstName("Sarah")
                     .lastName("Manager")
                     .role(managerRole)
                     .department(itDept)
                     .build());
-            log.info("Seeded default manager user: manager@techconnect.com");
+            log.info("Seeded development manager user: manager@techconnect.com");
         }
 
         // Seed Employee user if not exists
         if (!userRepository.existsByEmail("employee@techconnect.com") && employeeRole != null) {
             userRepository.save(User.builder()
                     .email("employee@techconnect.com")
-                    .password("{noop}Employee@1234")
+                    .password(initialPasswordHash)
                     .firstName("John")
                     .lastName("Doe")
                     .role(employeeRole)
                     .department(itDept)
                     .build());
-            log.info("Seeded default employee user: employee@techconnect.com");
+            log.info("Seeded development employee user: employee@techconnect.com");
         }
     }
 }
