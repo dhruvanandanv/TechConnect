@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,7 @@ public class DatabaseInitializer implements CommandLineRunner {
     private final DepartmentRepository departmentRepository;
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Value("${app.seed.dev-users:false}")
     private boolean seedDevUsers;
@@ -160,7 +162,7 @@ public class DatabaseInitializer implements CommandLineRunner {
         Department itDept = departmentRepository.findByCode("IT-OPS").orElse(null);
         Team networkTeam = teamRepository.findByName("Network Support").orElse(null);
 
-        String initialPasswordHash = "{noop}" + devInitialPassword;
+        String initialPasswordHash = passwordEncoder.encode(devInitialPassword);
 
         // Seed Admin user if not exists
         if (!userRepository.existsByEmail("admin@techconnect.com") && adminRole != null) {
