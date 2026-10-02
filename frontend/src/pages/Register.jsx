@@ -88,12 +88,13 @@ const Register = () => {
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="mb-3">
-            <label className="form-label small fw-semibold text-slate-700">Full Name</label>
+            <label htmlFor="registerName" className="form-label small fw-semibold text-slate-700">Full Name</label>
             <div className="input-group">
               <span className="input-group-text bg-white text-muted">
                 <i className="bi bi-person"></i>
               </span>
               <input
+                id="registerName"
                 type="text"
                 name="name"
                 className="form-control"
@@ -106,12 +107,13 @@ const Register = () => {
           </div>
 
           <div className="mb-3">
-            <label className="form-label small fw-semibold text-slate-700">Corporate Email</label>
+            <label htmlFor="registerEmail" className="form-label small fw-semibold text-slate-700">Corporate Email</label>
             <div className="input-group">
               <span className="input-group-text bg-white text-muted">
                 <i className="bi bi-envelope"></i>
               </span>
               <input
+                id="registerEmail"
                 type="email"
                 name="email"
                 className="form-control"
@@ -124,12 +126,13 @@ const Register = () => {
           </div>
 
           <div className="mb-3">
-            <label className="form-label small fw-semibold text-slate-700">Password</label>
+            <label htmlFor="registerPassword" className="form-label small fw-semibold text-slate-700">Password</label>
             <div className="input-group">
               <span className="input-group-text bg-white text-muted">
                 <i className="bi bi-lock"></i>
               </span>
               <input
+                id="registerPassword"
                 type="password"
                 name="password"
                 className="form-control"
@@ -142,12 +145,13 @@ const Register = () => {
           </div>
 
           <div className="mb-4">
-            <label className="form-label small fw-semibold text-slate-700">Confirm Password</label>
+            <label htmlFor="registerConfirmPassword" className="form-label small fw-semibold text-slate-700">Confirm Password</label>
             <div className="input-group">
               <span className="input-group-text bg-white text-muted">
                 <i className="bi bi-shield-check"></i>
               </span>
               <input
+                id="registerConfirmPassword"
                 type="password"
                 name="confirmPassword"
                 className="form-control"

@@ -51,6 +51,7 @@ const TicketDetails = () => {
     notes: '',
   });
   const [assignSubmitting, setAssignSubmitting] = useState(false);
+  const [selfAssignSubmitting, setSelfAssignSubmitting] = useState(false);
 
   const role = currentUser?.role;
   const isEmployee = role === 'ROLE_EMPLOYEE';
@@ -58,6 +59,74 @@ const TicketDetails = () => {
   const isManager = role === 'ROLE_MANAGER';
   const isAdmin = role === 'ROLE_ADMIN';
   const isStaff = isEngineer || isManager || isAdmin;
+
+  // Permitted transitions strictly matching the backend ITIL state machine
+  const getStatusTransitionLabel = (st) => {
+    switch (st) {
+      case 'OPEN':
+        return 'OPEN (Return to Queue)';
+      case 'ASSIGNED':
+        return 'ASSIGNED (Assignee Triage)';
+      case 'IN_PROGRESS':
+        return 'IN_PROGRESS (Active Work)';
+      case 'WAITING_FOR_USER':
+        return 'WAITING_FOR_USER (Awaiting Clarification)';
+      case 'RESOLVED':
+        return 'RESOLVED (Issue Solved)';
+      case 'ESCALATED':
+        return 'ESCALATED (High-tier Attention)';
+      case 'MANAGER_REVIEW':
+        return 'MANAGER_REVIEW (Manager Review & Governance)';
+      case 'CLOSED':
+        return 'CLOSED (Finalize Ticket)';
+      default:
+        return st;
+    }
+  };
+
+  const getAllowedStatusTransitions = () => {
+    if (!ticket) return [];
+    const current = ticket.status;
+
+    const STATE_TRANSITIONS = {
+      OPEN: ['ASSIGNED'],
+      ASSIGNED: ['IN_PROGRESS', 'OPEN'],
+      IN_PROGRESS: ['WAITING_FOR_USER', 'RESOLVED', 'ESCALATED'],
+      WAITING_FOR_USER: ['IN_PROGRESS', 'RESOLVED'],
+      ESCALATED: ['MANAGER_REVIEW', 'IN_PROGRESS'],
+      MANAGER_REVIEW: ['IN_PROGRESS', 'ASSIGNED', 'RESOLVED', 'CLOSED'],
+      RESOLVED: ['CLOSED', 'IN_PROGRESS'],
+      CLOSED: [],
+    };
+
+    const rawTargets = STATE_TRANSITIONS[current] || [];
+
+    if (isEmployee) {
+      if (current === 'RESOLVED') return [{ value: 'CLOSED', label: 'CLOSED (Confirm Resolution)' }];
+      if (current === 'WAITING_FOR_USER') return [{ value: 'IN_PROGRESS', label: 'IN_PROGRESS (Resume Work / Clarification Provided)' }];
+      return [];
+    }
+
+    if (isEngineer) {
+      return rawTargets
+        .filter((st) => st !== 'MANAGER_REVIEW')
+        .map((st) => ({
+          value: st,
+          label: getStatusTransitionLabel(st),
+        }));
+    }
+
+    if (isManager || isAdmin) {
+      return rawTargets.map((st) => ({
+        value: st,
+        label: getStatusTransitionLabel(st),
+      }));
+    }
+
+    return [];
+  };
+
+  const availableTransitions = getAllowedStatusTransitions();
 
   const loadTicketData = useCallback(async () => {
     try {
@@ -94,10 +163,11 @@ const TicketDetails = () => {
   // Handle Comment Submission
   const handleAddComment = async (e) => {
     e.preventDefault();
-    if (!newComment.trim()) return;
+    if (!newComment.trim() || commentSubmitting) return;
 
     try {
       setCommentSubmitting(true);
+      setError(null);
       const added = await ticketService.addComment(id, {
         content: newComment.trim(),
         isInternal: isStaff && isInternalComment,
@@ -107,6 +177,12 @@ const TicketDetails = () => {
       setNewComment('');
       setIsInternalComment(false);
       setSuccessMessage('Comment added successfully.');
+
+      // Refresh SLA because staff comment records first response milestone
+      if (isStaff && !ticket.respondedAt) {
+        const slaRes = await slaService.getTicketSla(id).catch(() => null);
+        if (slaRes) setSlaData(slaRes);
+      }
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -117,7 +193,7 @@ const TicketDetails = () => {
   // Handle Status Update Transition
   const handleUpdateStatus = async (e) => {
     e.preventDefault();
-    if (!statusForm.status) {
+    if (!statusForm.status || statusSubmitting) {
       setError('Please select a valid new status.');
       return;
     }
@@ -154,8 +230,9 @@ const TicketDetails = () => {
 
   // Handle Engineer Self-Assignment
   const handleSelfAssign = async () => {
+    if (selfAssignSubmitting) return;
     try {
-      setLoading(true);
+      setSelfAssignSubmitting(true);
       setError(null);
       const updated = await ticketService.assignTicket(id, {
         engineerId: currentUser.id,
@@ -163,23 +240,25 @@ const TicketDetails = () => {
       });
       setTicket(updated);
       setSuccessMessage('You have successfully assigned this ticket to yourself.');
-      const [assignRes, historyRes] = await Promise.allSettled([
+      const [assignRes, historyRes, slaRes] = await Promise.allSettled([
         ticketService.getAssignmentHistory(id),
         ticketService.getStatusHistory(id),
+        slaService.getTicketSla(id),
       ]);
       if (assignRes.status === 'fulfilled') setAssignments(assignRes.value);
       if (historyRes.status === 'fulfilled') setHistory(historyRes.value);
+      if (slaRes.status === 'fulfilled') setSlaData(slaRes.value);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
-      setLoading(false);
+      setSelfAssignSubmitting(false);
     }
   };
 
   // Handle Manager / Admin Assignment
   const handleAssignSubmit = async (e) => {
     e.preventDefault();
-    if (!assignForm.engineerId) {
+    if (!assignForm.engineerId || assignSubmitting) {
       setError('Please provide a valid Engineer ID.');
       return;
     }
@@ -196,12 +275,14 @@ const TicketDetails = () => {
       setShowAssignModal(false);
       setAssignForm({ engineerId: '', teamId: '', notes: '' });
       setSuccessMessage('Ticket assignment updated successfully.');
-      const [assignRes, historyRes] = await Promise.allSettled([
+      const [assignRes, historyRes, slaRes] = await Promise.allSettled([
         ticketService.getAssignmentHistory(id),
         ticketService.getStatusHistory(id),
+        slaService.getTicketSla(id),
       ]);
       if (assignRes.status === 'fulfilled') setAssignments(assignRes.value);
       if (historyRes.status === 'fulfilled') setHistory(historyRes.value);
+      if (slaRes.status === 'fulfilled') setSlaData(slaRes.value);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -217,11 +298,21 @@ const TicketDetails = () => {
     return (
       <div className="container py-5 text-center">
         <div className="tc-card p-5 mx-auto" style={{ maxWidth: '500px' }}>
-          <i className="bi bi-question-circle text-muted fs-1 mb-2"></i>
-          <h4>Ticket Not Found</h4>
-          <p className="text-muted small">
-            The requested ticket #{id} does not exist or you do not have permission to view it.
-          </p>
+          {error ? (
+            <>
+              <i className="bi bi-exclamation-triangle text-danger fs-1 mb-2"></i>
+              <h4 className="fw-bold text-slate-900">Request Failed</h4>
+              <p className="text-muted small">{error}</p>
+            </>
+          ) : (
+            <>
+              <i className="bi bi-question-circle text-muted fs-1 mb-2"></i>
+              <h4 className="fw-bold text-slate-900">Ticket Not Found</h4>
+              <p className="text-muted small">
+                The requested ticket #{id} does not exist or you do not have permission to view it.
+              </p>
+            </>
+          )}
           <Link to="/tickets" className="btn btn-primary mt-3">
             <i className="bi bi-arrow-left me-2"></i>Back to Tickets
           </Link>
@@ -288,9 +379,20 @@ const TicketDetails = () => {
                 type="button"
                 className="btn btn-outline-success d-flex align-items-center gap-2"
                 onClick={handleSelfAssign}
+                disabled={selfAssignSubmitting}
+                aria-label="Self-assign this ticket"
               >
-                <i className="bi bi-person-plus"></i>
-                <span>Self Assign</span>
+                {selfAssignSubmitting ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span>Assigning...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-person-plus"></i>
+                    <span>Self Assign</span>
+                  </>
+                )}
               </button>
             )}
 
@@ -300,6 +402,7 @@ const TicketDetails = () => {
                 type="button"
                 className="btn btn-outline-primary d-flex align-items-center gap-2"
                 onClick={() => setShowAssignModal(true)}
+                aria-label="Assign or reassign ticket"
               >
                 <i className="bi bi-person-gear"></i>
                 <span>{ticket.assignedEngineer ? 'Reassign' : 'Assign'}</span>
@@ -307,7 +410,7 @@ const TicketDetails = () => {
             )}
 
             {/* Status Change Button */}
-            {(isStaff || (isEmployee && ticket.status === 'RESOLVED')) && (
+            {availableTransitions.length > 0 && (
               <button
                 type="button"
                 className="btn btn-primary d-flex align-items-center gap-2"
@@ -315,6 +418,7 @@ const TicketDetails = () => {
                   setStatusForm({ status: '', reason: '', resolutionDescription: '' });
                   setShowStatusModal(true);
                 }}
+                aria-label="Update ticket status"
               >
                 <i className="bi bi-arrow-left-right"></i>
                 <span>Update Status</span>
@@ -734,10 +838,11 @@ const TicketDetails = () => {
               <form onSubmit={handleUpdateStatus}>
                 <div className="modal-body">
                   <div className="mb-3">
-                    <label className="form-label small fw-semibold text-slate-700">
+                    <label htmlFor="statusSelect" className="form-label small fw-semibold text-slate-700">
                       New Status <span className="text-danger">*</span>
                     </label>
                     <select
+                      id="statusSelect"
                       className="form-select"
                       value={statusForm.status}
                       onChange={(e) =>
@@ -746,30 +851,21 @@ const TicketDetails = () => {
                       required
                     >
                       <option value="">Select Next Status...</option>
-                      {isEmployee && ticket.status === 'RESOLVED' && (
-                        <option value="CLOSED">CLOSED (Confirm Resolution)</option>
-                      )}
-                      {isStaff && (
-                        <>
-                          <option value="IN_PROGRESS">IN_PROGRESS (Working on ticket)</option>
-                          <option value="WAITING_FOR_USER">WAITING_FOR_USER (Awaiting clarification)</option>
-                          <option value="RESOLVED">RESOLVED (Issue solved)</option>
-                          <option value="ESCALATED">ESCALATED (High tier attention)</option>
-                          <option value="CLOSED">CLOSED (Complete & finalize)</option>
-                          {(isManager || isAdmin) && (
-                            <option value="MANAGER_REVIEW">MANAGER_REVIEW (Review SLA or issue)</option>
-                          )}
-                        </>
-                      )}
+                      {availableTransitions.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
                   {statusForm.status === 'RESOLVED' && (
                     <div className="mb-3">
-                      <label className="form-label small fw-semibold text-slate-700">
+                      <label htmlFor="resolutionDescriptionInput" className="form-label small fw-semibold text-slate-700">
                         Resolution Description <span className="text-danger">*</span>
                       </label>
                       <textarea
+                        id="resolutionDescriptionInput"
                         className="form-control"
                         rows="3"
                         placeholder="Detail how the issue was diagnosed and resolved..."
@@ -786,10 +882,11 @@ const TicketDetails = () => {
                   )}
 
                   <div className="mb-3">
-                    <label className="form-label small fw-semibold text-slate-700">
+                    <label htmlFor="statusReasonInput" className="form-label small fw-semibold text-slate-700">
                       Change Reason / Remarks
                     </label>
                     <input
+                      id="statusReasonInput"
                       type="text"
                       className="form-control"
                       placeholder="e.g., Investigation completed, patch deployed."
@@ -834,15 +931,17 @@ const TicketDetails = () => {
                   type="button"
                   className="btn-close"
                   onClick={() => setShowAssignModal(false)}
+                  aria-label="Close"
                 ></button>
               </div>
               <form onSubmit={handleAssignSubmit}>
                 <div className="modal-body">
                   <div className="mb-3">
-                    <label className="form-label small fw-semibold text-slate-700">
+                    <label htmlFor="engineerIdInput" className="form-label small fw-semibold text-slate-700">
                       Engineer ID <span className="text-danger">*</span>
                     </label>
                     <input
+                      id="engineerIdInput"
                       type="number"
                       className="form-control"
                       placeholder="e.g. 2 (Engineer Alex)"
@@ -858,10 +957,11 @@ const TicketDetails = () => {
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label small fw-semibold text-slate-700">
+                    <label htmlFor="teamIdInput" className="form-label small fw-semibold text-slate-700">
                       Team ID (Optional)
                     </label>
                     <input
+                      id="teamIdInput"
                       type="number"
                       className="form-control"
                       placeholder="e.g. 1 (Network Support)"
@@ -873,10 +973,11 @@ const TicketDetails = () => {
                   </div>
 
                   <div className="mb-3">
-                    <label className="form-label small fw-semibold text-slate-700">
+                    <label htmlFor="assignmentNotesInput" className="form-label small fw-semibold text-slate-700">
                       Assignment Notes
                     </label>
                     <input
+                      id="assignmentNotesInput"
                       type="text"
                       className="form-control"
                       placeholder="e.g. Assigned per network triage rotation."

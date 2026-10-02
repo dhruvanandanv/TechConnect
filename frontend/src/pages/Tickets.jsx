@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import ticketService from '../services/ticketService';
 import { extractErrorMessage } from '../services/api';
 import StatusBadge from '../components/StatusBadge';
@@ -33,6 +34,7 @@ const CATEGORIES = [
 ];
 
 const Tickets = ({ filterAssignedOnly = false }) => {
+  const { currentUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Filters from query params or state
@@ -70,7 +72,11 @@ const Tickets = ({ filterAssignedOnly = false }) => {
 
       // If viewing assigned tickets only (for engineer shortcuts)
       if (filterAssignedOnly) {
-        content = content.filter((t) => t.assignedEngineerName);
+        if (currentUser?.role === 'ROLE_ENGINEER' && currentUser?.id) {
+          content = content.filter((t) => t.assignedEngineerId === currentUser.id);
+        } else {
+          content = content.filter((t) => t.assignedEngineerName);
+        }
       }
 
       setTickets(content);
@@ -81,7 +87,7 @@ const Tickets = ({ filterAssignedOnly = false }) => {
     } finally {
       setLoading(false);
     }
-  }, [status, priority, category, page, pageSize, filterAssignedOnly]);
+  }, [status, priority, category, page, pageSize, filterAssignedOnly, currentUser]);
 
   useEffect(() => {
     fetchTickets();

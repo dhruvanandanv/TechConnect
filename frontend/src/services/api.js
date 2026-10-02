@@ -11,12 +11,12 @@ const api = axios.create({
   timeout: 15000,
 });
 
-// Request Interceptor: Attach JWT Bearer token if stored
+// Request Interceptor: Attach JWT Bearer token only if valid token is stored
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('techconnect_token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (token && typeof token === 'string' && token.trim() && token !== 'null' && token !== 'undefined') {
+      config.headers.Authorization = `Bearer ${token.trim()}`;
     }
     return config;
   },
@@ -31,14 +31,20 @@ api.interceptors.response.use(
       const { status, data } = error.response;
 
       if (status === 401) {
-        // Clear stale session
-        localStorage.removeItem('techconnect_token');
-        localStorage.removeItem('techconnect_user');
-        
-        // Notify application components of auth expiry
-        window.dispatchEvent(new CustomEvent('techconnect:auth-expired', {
-          detail: { message: data?.message || 'Session expired. Please log in again.' }
-        }));
+        const url = error.config?.url || '';
+        const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/register');
+
+        // Only broadcast session expiry for authenticated routes, not credential failures on login
+        if (!isAuthEndpoint) {
+          localStorage.removeItem('techconnect_token');
+          localStorage.removeItem('techconnect_user');
+
+          window.dispatchEvent(
+            new CustomEvent('techconnect:auth-expired', {
+              detail: { message: data?.message || 'Your session has expired. Please log in again.' },
+            })
+          );
+        }
       }
     }
 
@@ -47,30 +53,57 @@ api.interceptors.response.use(
 );
 
 /**
- * Extracts a user-friendly error message from backend ErrorResponse or Axios error.
+ * Extracts a user-friendly error message from backend ErrorResponse, HTTP status, or network failure.
  */
 export const extractErrorMessage = (error) => {
   if (!error) return 'An unexpected error occurred.';
   if (typeof error === 'string') return error;
 
-  if (error.response?.data) {
-    const data = error.response.data;
+  // 1. Network connectivity / server unavailable errors
+  if (!error.response) {
+    if (error.code === 'ECONNABORTED' || error.message?.toLowerCase().includes('timeout')) {
+      return 'Request timed out. Unable to connect to TechConnect server.';
+    }
+    if (
+      error.code === 'ERR_NETWORK' ||
+      error.message === 'Network Error' ||
+      error.request
+    ) {
+      return 'Unable to connect to TechConnect server. Please ensure the backend is running.';
+    }
+    return error.message || 'Unable to connect to TechConnect server.';
+  }
+
+  // 2. Structured backend ErrorResponse
+  const { status, data } = error.response;
+  if (data) {
     if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
       return data.errors.join(' | ');
     }
-    if (data.message) {
+    if (data.message && typeof data.message === 'string') {
       return data.message;
     }
   }
 
-  if (error.message) {
-    if (error.code === 'ERR_NETWORK') {
-      return 'Unable to connect to the TechConnect server. Please ensure the backend is running.';
-    }
-    return error.message;
+  // 3. Status code standard fallbacks
+  switch (status) {
+    case 400:
+      return 'Invalid request submitted. Please check your input.';
+    case 401:
+      return 'Your session has expired. Please log in again.';
+    case 403:
+      return 'You do not have permission to perform this action.';
+    case 404:
+      return 'The requested resource was not found.';
+    case 409:
+      return 'The requested operation conflicts with the current ticket state.';
+    case 500:
+    case 502:
+    case 503:
+      return 'Something went wrong on the server. Please try again later.';
+    default:
+      return error.message || 'An unexpected error occurred. Please try again.';
   }
-
-  return 'An unexpected error occurred. Please try again.';
 };
 
 export default api;

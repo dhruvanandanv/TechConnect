@@ -683,15 +683,17 @@ Service Level Agreements (SLAs) enforce operational milestones for IT incident r
 
 ### 4.1 CORS Policy
 The TechConnect Spring Boot backend configures CORS in `com.techconnect.config.SecurityConfig`:
-- **Allowed Origins**: `*` (or configured frontend development URL)
+- **Allowed Origins**: Injected via property `techconnect.cors.allowed-origins` (defaults to `http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000`). Wildcard `*` is not used in order to maintain secure origin boundaries.
 - **Allowed Methods**: `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`
 - **Allowed Headers**: `Authorization`, `Content-Type`, `Accept`, `Origin`, `X-Requested-With`
 - **Max Age**: `3600` seconds
 
-### 4.2 React Client Consumption
+### 4.2 React Client Consumption & Reliability
 - Centralized Axios client (`frontend/src/services/api.js`) applies `import.meta.env.VITE_API_BASE_URL`.
-- Automatically attaches `Authorization: Bearer <token>` for all authenticated requests.
-- On `401 Unauthorized` responses, clears local token storage and dispatches `techconnect:auth-expired` to redirect to `/login`.
+- Automatically attaches `Authorization: Bearer <token>` for all authenticated requests when a valid token exists.
+- On `401 Unauthorized` responses (excluding auth endpoints `/auth/login` and `/auth/register`), clears local token storage and dispatches `techconnect:auth-expired` to redirect to `/login` with friendly session-expired toast notifications.
+- Handles network failures, timeouts, and backend outages gracefully via `extractErrorMessage()`, returning `"Unable to connect to TechConnect server. Please ensure the backend is running."` instead of raw Axios error traces.
+- All mutating actions (Ticket submission, self-assignment, status change, comments) feature UI loading spinners and button disablement to prevent duplicate submissions.
 
 
 

@@ -106,6 +106,7 @@ TechConnect/
 - **Phase 5 – IT Service Ticket Management**: COMPLETE
 - **Phase 6 – SLA Management & Automation Engine**: COMPLETE
 - **Phase 7 – React Frontend & Dashboard**: COMPLETE
+- **Phase 8 – Full-Stack Integration Hardening & API Reliability**: COMPLETE
 
 ---
 
@@ -136,6 +137,8 @@ npm run build
 
 ---
 
-## Frontend Documentation
-Detailed frontend architecture, routing, role-based UI flows, and API integration are documented in [docs/frontend.md](docs/frontend.md).
-Backend API contracts are documented in [docs/api.md](docs/api.md).
+## Documentation
+- **Full-Stack Integration & Architecture**: Detailed full-stack architecture, API reliability, JWT lifecycle, error handling, CORS, and IDOR matrix are documented in [docs/integration.md](docs/integration.md).
+- **Backend API Reference**: REST API contracts and error payloads are documented in [docs/api.md](docs/api.md).
+- **Frontend Architecture**: Component layout, routing, role guards, and client state are documented in [docs/frontend.md](docs/frontend.md).
+

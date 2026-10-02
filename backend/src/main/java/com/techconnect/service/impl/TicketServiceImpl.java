@@ -180,6 +180,8 @@ public class TicketServiceImpl implements TicketService {
         Ticket ticket = loadTicketById(id);
         User currentUser = loadUserByEmail(currentUserEmail);
 
+        assertCanViewTicket(ticket, currentUser);
+
         RoleName role = currentUser.getRole().getName();
         boolean isCreator = ticket.getCreatedBy().getId().equals(currentUser.getId());
         boolean isAssignedEngineer = ticket.getAssignedEngineer() != null
@@ -219,6 +221,15 @@ public class TicketServiceImpl implements TicketService {
                 ticket.setResolutionDescription(request.getResolutionDescription());
             }
         } else if (isAdminOrManager) {
+            if (role == RoleName.ROLE_MANAGER) {
+                boolean inTeam = currentUser.getTeam() != null && ticket.getAssignedTeam() != null
+                        && ticket.getAssignedTeam().getId().equals(currentUser.getTeam().getId());
+                boolean inDept = currentUser.getDepartment() != null && ticket.getDepartment() != null
+                        && ticket.getDepartment().getId().equals(currentUser.getDepartment().getId());
+                if (!inTeam && !inDept && !isCreator) {
+                    throw new TicketAccessDeniedException("Managers can only update tickets within their team or department");
+                }
+            }
             // Manager/Admin can update title, description, category, priority, resolutionDescription
             if (request.getTitle() != null && !request.getTitle().isBlank()) {
                 ticket.setTitle(request.getTitle().trim());
@@ -251,6 +262,8 @@ public class TicketServiceImpl implements TicketService {
     public TicketResponse updateTicketStatus(Long id, TicketStatusUpdateRequest request, String currentUserEmail) {
         Ticket ticket = loadTicketById(id);
         User currentUser = loadUserByEmail(currentUserEmail);
+
+        assertCanViewTicket(ticket, currentUser);
 
         TicketStatus currentStatus = ticket.getStatus();
         TicketStatus targetStatus = request.getStatus();
@@ -306,9 +319,22 @@ public class TicketServiceImpl implements TicketService {
         User currentUser = loadUserByEmail(currentUserEmail);
         RoleName role = currentUser.getRole().getName();
 
+        assertCanViewTicket(ticket, currentUser);
+
         // Validate who can assign
         if (role == RoleName.ROLE_EMPLOYEE) {
             throw new TicketAccessDeniedException("Employees are not authorized to assign engineers to tickets");
+        }
+
+        if (role == RoleName.ROLE_MANAGER) {
+            boolean inTeam = currentUser.getTeam() != null && ticket.getAssignedTeam() != null
+                    && ticket.getAssignedTeam().getId().equals(currentUser.getTeam().getId());
+            boolean inDept = currentUser.getDepartment() != null && ticket.getDepartment() != null
+                    && ticket.getDepartment().getId().equals(currentUser.getDepartment().getId());
+            boolean isCreator = ticket.getCreatedBy() != null && ticket.getCreatedBy().getId().equals(currentUser.getId());
+            if (!inTeam && !inDept && !isCreator) {
+                throw new TicketAccessDeniedException("Managers can only assign tickets within their team or department");
+            }
         }
 
         if (role == RoleName.ROLE_ENGINEER) {
@@ -495,7 +521,14 @@ public class TicketServiceImpl implements TicketService {
         }
 
         if (role == RoleName.ROLE_MANAGER) {
-            // Managers can perform valid transitions on tickets within team/department or assigned to them
+            // Managers can perform valid transitions on tickets within team/department or assigned to them or created by them
+            boolean inTeam = user.getTeam() != null && ticket.getAssignedTeam() != null
+                    && ticket.getAssignedTeam().getId().equals(user.getTeam().getId());
+            boolean inDept = user.getDepartment() != null && ticket.getDepartment() != null
+                    && ticket.getDepartment().getId().equals(user.getDepartment().getId());
+            if (!inTeam && !inDept && !isCreator && !isAssignedEngineer) {
+                throw new TicketAccessDeniedException("Managers can only update status on tickets within their team or department");
+            }
             return;
         }
 

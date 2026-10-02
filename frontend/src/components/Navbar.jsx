@@ -49,6 +49,7 @@ const Navbar = ({ onToggleSidebar }) => {
               id="userMenuButton"
               data-bs-toggle="dropdown"
               aria-expanded="false"
+              aria-label="User account menu"
               onClick={(e) => {
                 const menu = document.getElementById('userDropdownMenu');
                 if (menu) menu.classList.toggle('show');

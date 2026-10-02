@@ -64,12 +64,13 @@ const Login = () => {
 
         <form onSubmit={handleSubmit} noValidate>
           <div className="mb-3">
-            <label className="form-label small fw-semibold text-slate-700">Email Address</label>
+            <label htmlFor="loginEmail" className="form-label small fw-semibold text-slate-700">Email Address</label>
             <div className="input-group">
               <span className="input-group-text bg-white text-muted">
                 <i className="bi bi-envelope"></i>
               </span>
               <input
+                id="loginEmail"
                 type="email"
                 className="form-control"
                 placeholder="name@techconnect.com"
@@ -83,13 +84,14 @@ const Login = () => {
 
           <div className="mb-4">
             <div className="d-flex justify-content-between align-items-center mb-1">
-              <label className="form-label small fw-semibold text-slate-700 mb-0">Password</label>
+              <label htmlFor="loginPassword" className="form-label small fw-semibold text-slate-700 mb-0">Password</label>
             </div>
             <div className="input-group">
               <span className="input-group-text bg-white text-muted">
                 <i className="bi bi-lock"></i>
               </span>
               <input
+                id="loginPassword"
                 type="password"
                 className="form-control"
                 placeholder="••••••••"
