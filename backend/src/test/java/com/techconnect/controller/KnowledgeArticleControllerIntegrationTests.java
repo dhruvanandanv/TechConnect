@@ -64,6 +64,9 @@ class KnowledgeArticleControllerIntegrationTests {
     @Autowired
     private KnowledgeArticleHistoryRepository historyRepository;
 
+    @org.springframework.boot.test.mock.mockito.MockBean
+    private com.techconnect.client.AiKnowledgeVectorClient vectorClient;
+
     @Value("${app.seed.dev-password:TestPassOnlyInTests!2026}")
     private String devPassword;
 
@@ -574,5 +577,169 @@ class KnowledgeArticleControllerIntegrationTests {
                 .andExpect(jsonPath("$", hasItem("SOFTWARE")))
                 .andExpect(jsonPath("$", hasItem("NETWORK")))
                 .andExpect(jsonPath("$", hasItem("SECURITY")));
+    }
+
+    // =========================================================================
+    // 8. PHASE 11 SEMANTIC VECTOR SEARCH & INGESTION TESTS
+    // =========================================================================
+
+    @Test
+    @DisplayName("Semantic Search POST returns valid vector chunks and searchType=SEMANTIC")
+    void testSemanticSearch_Post_Success() throws Exception {
+        com.techconnect.dto.knowledge.SemanticSearchResponse mockResp = com.techconnect.dto.knowledge.SemanticSearchResponse.builder()
+                .searchType("SEMANTIC")
+                .query("remote vpn issue")
+                .available(true)
+                .totalHits(1)
+                .results(List.of(
+                        com.techconnect.dto.knowledge.SemanticSearchResultChunk.builder()
+                                .articleId("art-vpn-1")
+                                .chunkId("art-vpn-1-res-0")
+                                .title("VPN Troubleshooting")
+                                .section("RESOLUTION")
+                                .similarity(0.89)
+                                .category("NETWORK")
+                                .build()
+                ))
+                .build();
+
+        org.mockito.Mockito.when(vectorClient.semanticSearch(
+                org.mockito.ArgumentMatchers.eq("remote vpn issue"),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).thenReturn(mockResp);
+
+        com.techconnect.dto.knowledge.SemanticSearchRequest req = com.techconnect.dto.knowledge.SemanticSearchRequest.builder()
+                .query("remote vpn issue")
+                .topK(5)
+                .minSimilarity(0.50)
+                .build();
+
+        mockMvc.perform(post("/api/knowledge/semantic-search")
+                        .header("Authorization", "Bearer " + employeeToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.searchType").value("SEMANTIC"))
+                .andExpect(jsonPath("$.available").value(true))
+                .andExpect(jsonPath("$.totalHits").value(1))
+                .andExpect(jsonPath("$.results[0].similarity").value(0.89))
+                .andExpect(jsonPath("$.results[0].section").value("RESOLUTION"));
+    }
+
+    @Test
+    @DisplayName("Semantic Search GET returns valid vector results")
+    void testSemanticSearch_Get_Success() throws Exception {
+        com.techconnect.dto.knowledge.SemanticSearchResponse mockResp = com.techconnect.dto.knowledge.SemanticSearchResponse.builder()
+                .searchType("SEMANTIC")
+                .query("printer offline")
+                .available(true)
+                .totalHits(1)
+                .results(List.of(
+                        com.techconnect.dto.knowledge.SemanticSearchResultChunk.builder()
+                                .articleId("art-print-1")
+                                .chunkId("art-print-1-prob-0")
+                                .title("Printer Setup")
+                                .section("PROBLEM")
+                                .similarity(0.78)
+                                .category("HARDWARE")
+                                .build()
+                ))
+                .build();
+
+        org.mockito.Mockito.when(vectorClient.semanticSearch(
+                org.mockito.ArgumentMatchers.eq("printer offline"),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).thenReturn(mockResp);
+
+        mockMvc.perform(get("/api/knowledge/semantic-search?q=printer offline&topK=3")
+                        .header("Authorization", "Bearer " + employeeToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.searchType").value("SEMANTIC"))
+                .andExpect(jsonPath("$.results[0].section").value("PROBLEM"));
+    }
+
+    @Test
+    @DisplayName("Semantic Search rejects invalid topK > 20 with HTTP 400")
+    void testSemanticSearch_Validation_TopKExceeded_ReturnsBadRequest() throws Exception {
+        com.techconnect.dto.knowledge.SemanticSearchRequest req = com.techconnect.dto.knowledge.SemanticSearchRequest.builder()
+                .query("test")
+                .topK(100)
+                .build();
+
+        mockMvc.perform(post("/api/knowledge/semantic-search")
+                        .header("Authorization", "Bearer " + employeeToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Semantic Search rejects empty query with HTTP 400")
+    void testSemanticSearch_Validation_EmptyQuery_ReturnsBadRequest() throws Exception {
+        com.techconnect.dto.knowledge.SemanticSearchRequest req = com.techconnect.dto.knowledge.SemanticSearchRequest.builder()
+                .query("   ")
+                .build();
+
+        mockMvc.perform(post("/api/knowledge/semantic-search")
+                        .header("Authorization", "Bearer " + employeeToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(req)))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("Ingestion trigger is forbidden for employees with HTTP 403")
+    void testIngestionRun_EmployeeForbidden_Returns403() throws Exception {
+        mockMvc.perform(post("/api/knowledge/ingestion/run")
+                        .header("Authorization", "Bearer " + employeeToken))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Ingestion trigger is authorized for engineer with HTTP 200")
+    void testIngestionRun_EngineerAllowed_Returns200() throws Exception {
+        com.techconnect.dto.knowledge.IngestionRunResponse mockIngestResp = com.techconnect.dto.knowledge.IngestionRunResponse.builder()
+                .articlesDiscovered(0)
+                .articlesProcessed(0)
+                .chunksCreated(0)
+                .chunksEmbedded(0)
+                .failures(0)
+                .message("No pending articles requiring vector ingestion")
+                .build();
+
+        org.mockito.Mockito.when(vectorClient.ingestArticlesBatch(org.mockito.ArgumentMatchers.anyList()))
+                .thenReturn(mockIngestResp);
+
+        mockMvc.perform(post("/api/knowledge/ingestion/run")
+                        .header("Authorization", "Bearer " + engineerToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.articlesDiscovered").value(0));
+    }
+
+    @Test
+    @DisplayName("Semantic Search gracefully returns unavailable when AI vector service is offline")
+    void testSemanticSearch_AiOffline_ReturnsUnavailableGracefully() throws Exception {
+        org.mockito.Mockito.when(vectorClient.semanticSearch(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        )).thenReturn(com.techconnect.dto.knowledge.SemanticSearchResponse.unavailable("any query", "Semantic search is temporarily unavailable."));
+
+        mockMvc.perform(get("/api/knowledge/semantic-search?q=any query")
+                        .header("Authorization", "Bearer " + employeeToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.available").value(false))
+                .andExpect(jsonPath("$.message").value("Semantic search is temporarily unavailable."));
     }
 }

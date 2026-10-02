@@ -30,4 +30,5 @@ public class KnowledgeArticleSummaryResponse {
     private Long helpfulCount;
     private LocalDateTime updatedAt;
     private LocalDateTime publishedAt;
+    private String embeddingStatus;
 }

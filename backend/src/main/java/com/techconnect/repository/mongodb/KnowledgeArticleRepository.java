@@ -27,7 +27,11 @@ public interface KnowledgeArticleRepository extends MongoRepository<KnowledgeArt
 
     Page<KnowledgeArticle> findByAuthorId(Long authorId, Pageable pageable);
 
+    List<KnowledgeArticle> findByAuthorId(Long authorId);
+
     Page<KnowledgeArticle> findByAuthorIdAndStatus(Long authorId, ArticleStatus status, Pageable pageable);
 
     List<KnowledgeArticle> findBySourceTicketId(Long sourceTicketId);
+
+    List<KnowledgeArticle> findByEmbeddingStatus(String embeddingStatus);
 }

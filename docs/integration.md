@@ -323,9 +323,29 @@ React (KnowledgeBase / Viewer / Editor)
 
 ---
 
-## 13. Known Limitations (Post-Phase 10)
-- **Keyword Search Only**: Search relies on MongoDB text and regex pattern matching. Semantic vector embeddings and neural similarity search belong to Phase 11+.
-- **RAG & GenAI Copilot**: Knowledge articles maintain clean normalized text structures, but retrieval-augmented generation and LLM copilot are targeted for subsequent phases.
+## 13. AI Vector Search & Ingestion Integration (Phase 11)
+
+### 13.1 Microservice Contract & Endpoints
+The Spring Boot backend delegates semantic embedding generation and vector nearest-neighbor searches to the Python AI service (`http://localhost:8000`) via `AiKnowledgeVectorClient`:
+- **`POST /api/v1/knowledge-vector/semantic-search`**: Query embedding and similarity matching.
+- **`POST /api/v1/knowledge-vector/ingest`**: Batch ingestion of pending articles.
+- **`POST /api/v1/knowledge-vector/reindex`**: Targeted re-chunking and re-embedding.
+
+### 13.2 Circuit Breaker & Resilience
+- **Fail-Safe Design**: If the Python service or pgvector database crashes or times out, `AiKnowledgeVectorClient` catches exceptions and returns an available-false fallback:
+  ```json
+  {
+    "searchType": "SEMANTIC",
+    "available": false,
+    "message": "Semantic vector search is temporarily unavailable. Keyword search remains fully operational."
+  }
+  ```
+- **Zero Impact on Core Functionality**: Traditional keyword search (`/api/knowledge/search`), ticket operations, and article viewing continue functioning without disruption.
+
+---
+
+## 14. Known Limitations (Post-Phase 11)
+- **Retrieval Only**: Phase 11 performs vector retrieval and similarity scoring. Generative AI answers and conversational RAG belong to Phase 12.
 - **Token Refresh**: Silent refresh token rotation is not yet implemented; users must re-authenticate upon token expiration.
 - **WebSocket Push**: Ticket updates and SLA status refresh via HTTP refetching rather than real-time WebSockets.
 

@@ -886,6 +886,106 @@ Service Level Agreements (SLAs) enforce operational milestones for IT incident r
 
 ---
 
+### 3.8 Semantic Vector Search & AI Ingestion (Phase 11)
+
+#### `POST /api/knowledge/semantic-search`
+- **Description**: Executes dense semantic vector similarity search against pre-chunked knowledge representations in PostgreSQL (`pgvector`). Embeds the incoming query using `all-MiniLM-L6-v2` (384 dimensions) and matches via cosine distance (`1 - (embedding <=> query_vec)`).
+- **Authentication**: Bearer JWT (All roles; role security strictly enforced at application layer)
+  - `ROLE_EMPLOYEE`: Results strictly restricted to `PUBLISHED` articles.
+  - `ROLE_ENGINEER`: Results restricted to `PUBLISHED` articles plus own authored draft/archived articles.
+  - `ROLE_MANAGER`, `ROLE_ADMIN`: Unrestricted search across all articles.
+- **Validation**:
+  - `query`: Required, non-empty, max 1000 characters.
+  - `topK`: Optional integer, range 1 to 20 (default: 5).
+  - `minSimilarity`: Optional float, range 0.0 to 1.0 (default: 0.25).
+  - `category`: Optional filter string from standard `TicketCategory`.
+- **Request Example**:
+  ```json
+  {
+    "query": "VPN keeps dropping when connecting from home",
+    "category": "VPN",
+    "topK": 5,
+    "minSimilarity": 0.30
+  }
+  ```
+- **Response Example (`200 OK`)**:
+  ```json
+  {
+    "query": "VPN keeps dropping when connecting from home",
+    "searchType": "SEMANTIC",
+    "available": true,
+    "message": "Found 1 matching knowledge chunk(s)",
+    "results": [
+      {
+        "articleId": "674e2b10a4f59e001234abcd",
+        "chunkId": "674e2b10a4f59e001234abcd-2",
+        "articleVersion": 2,
+        "title": "Configuring Corporate VPN via Cisco AnyConnect",
+        "section": "RESOLUTION",
+        "content": "1. Flush DNS using ipconfig /flushdns.\n2. Update AnyConnect profile to v3.4.\n3. Re-authenticate via Azure AD MFA.",
+        "category": "VPN",
+        "tags": ["vpn", "cisco", "network"],
+        "similarity": 0.8842
+      }
+    ],
+    "totalHits": 1
+  }
+  ```
+- **Graceful Fallback When AI Vector Service is Down (`200 OK`)**:
+  ```json
+  {
+    "query": "VPN keeps dropping",
+    "searchType": "SEMANTIC",
+    "available": false,
+    "message": "Semantic vector search is temporarily unavailable. Keyword search remains fully operational.",
+    "results": [],
+    "totalHits": 0
+  }
+  ```
+
+---
+
+#### `GET /api/knowledge/semantic-search?q={query}&category={category}&topK={topK}&minSimilarity={minSimilarity}`
+- **Description**: Query parameter alternative for semantic search.
+- **Authentication**: Bearer JWT (All roles)
+- **Response (`200 OK`)**: Same `SemanticSearchResponse` schema as `POST`.
+
+---
+
+#### `POST /api/knowledge/ingestion/run`
+- **Description**: Triggers batch ingestion of all knowledge articles with `embeddingStatus = PENDING`. Converts article content into normalized text, splits into structural chunks, generates 384-dimensional embeddings via `all-MiniLM-L6-v2`, and stores vector chunks into PostgreSQL `knowledge_embedding_chunks`.
+- **Authentication**: Bearer JWT (`ROLE_ENGINEER`, `ROLE_MANAGER`, `ROLE_ADMIN`). Employees receive `403 Forbidden`.
+- **Response Example (`200 OK`)**:
+  ```json
+  {
+    "articlesDiscovered": 3,
+    "articlesProcessed": 3,
+    "chunksCreated": 12,
+    "chunksEmbedded": 12,
+    "failures": 0,
+    "status": "COMPLETED",
+    "message": "Ingestion run completed successfully"
+  }
+  ```
+
+---
+
+#### `POST /api/knowledge/articles/{id}/reindex`
+- **Description**: Forces immediate reindexing of a specific knowledge article. Validates author/staff permissions, marks status `PENDING`, removes stale chunk vectors from PostgreSQL, re-splits, re-embeds, and updates MongoDB status to `COMPLETED`.
+- **Authentication**: Bearer JWT (Author Engineer, Manager, Admin). Employees receive `403 Forbidden`.
+- **Response Example (`200 OK`)**:
+  ```json
+  {
+    "articleId": "674e2b10a4f59e001234abcd",
+    "chunksCreated": 4,
+    "chunksEmbedded": 4,
+    "status": "COMPLETED",
+    "message": "Article reindexed successfully with 4 vector chunk(s)"
+  }
+  ```
+
+---
+
 ## 4. Frontend Client Integration & CORS
 
 ### 4.1 CORS Policy

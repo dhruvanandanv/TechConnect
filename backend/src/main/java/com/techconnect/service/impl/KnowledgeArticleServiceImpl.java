@@ -42,6 +42,7 @@ public class KnowledgeArticleServiceImpl implements KnowledgeArticleService {
     private final KnowledgeArticleHistoryRepository historyRepository;
     private final UserRepository userRepository;
     private final MongoTemplate mongoTemplate;
+    private final com.techconnect.client.AiKnowledgeVectorClient vectorClient;
 
     @Override
     public KnowledgeArticleResponse createArticle(CreateKnowledgeArticleRequest request, String userEmail) {
@@ -159,6 +160,11 @@ public class KnowledgeArticleServiceImpl implements KnowledgeArticleService {
             article.setVersion(article.getVersion() + 1);
         }
 
+        if (meaningfulContentChanged) {
+            article.setEmbeddingStatus("PENDING");
+            article.setEmbeddingError(null);
+        }
+
         article.setUpdatedAt(now);
         article.setNormalizedText(buildNormalizedText(article.getTitle(), article.getSummary(),
                 article.getProblem(), article.getCause(), article.getResolution(), article.getTags()));
@@ -189,6 +195,7 @@ public class KnowledgeArticleServiceImpl implements KnowledgeArticleService {
         article.setUpdatedAt(now);
 
         KnowledgeArticle saved = articleRepository.save(article);
+        vectorClient.updateArticleStatus(saved.getId(), "PUBLISHED");
 
         recordHistory(saved.getId(), KnowledgeArticleHistoryAction.PUBLISHED, user, saved.getVersion(),
                 "Article published");
@@ -214,6 +221,7 @@ public class KnowledgeArticleServiceImpl implements KnowledgeArticleService {
         article.setUpdatedAt(now);
 
         KnowledgeArticle saved = articleRepository.save(article);
+        vectorClient.updateArticleStatus(saved.getId(), "ARCHIVED");
 
         recordHistory(saved.getId(), KnowledgeArticleHistoryAction.ARCHIVED, user, saved.getVersion(),
                 "Article archived");
@@ -239,6 +247,7 @@ public class KnowledgeArticleServiceImpl implements KnowledgeArticleService {
         article.setUpdatedAt(now);
 
         KnowledgeArticle saved = articleRepository.save(article);
+        vectorClient.updateArticleStatus(saved.getId(), "DRAFT");
 
         KnowledgeArticleHistoryAction action = (previousStatus == ArticleStatus.ARCHIVED)
                 ? KnowledgeArticleHistoryAction.RESTORED
@@ -489,6 +498,167 @@ public class KnowledgeArticleServiceImpl implements KnowledgeArticleService {
     }
 
     // =========================================================================
+    // Phase 11 Semantic Search & Vector Ingestion
+    // =========================================================================
+
+    @Override
+    public SemanticSearchResponse semanticSearch(SemanticSearchRequest request, String userEmail) {
+        User user = getUserByEmail(userEmail);
+
+        if (request.getQuery() == null || request.getQuery().trim().isEmpty()) {
+            return SemanticSearchResponse.builder()
+                    .searchType("SEMANTIC")
+                    .query("")
+                    .available(true)
+                    .totalHits(0)
+                    .results(new ArrayList<>())
+                    .build();
+        }
+
+        List<String> allowedStatuses = null;
+        List<String> allowedArticleIds = null;
+
+        if (isEmployee(user)) {
+            // Employees strictly only ever search PUBLISHED articles
+            allowedStatuses = List.of(ArticleStatus.PUBLISHED.name());
+        } else if (isEngineer(user)) {
+            // Engineers can search published articles or their own authored articles
+            allowedStatuses = List.of(ArticleStatus.PUBLISHED.name());
+            List<KnowledgeArticle> ownArticles = articleRepository.findByAuthorId(user.getId());
+            allowedArticleIds = ownArticles.stream().map(KnowledgeArticle::getId).collect(Collectors.toList());
+        }
+
+        SemanticSearchResponse response = vectorClient.semanticSearch(
+                request.getQuery().trim(),
+                request.getCategory(),
+                request.getTopK(),
+                request.getMinSimilarity(),
+                allowedStatuses,
+                allowedArticleIds
+        );
+
+        // Enrich results with article titles and slugs
+        if (response.isAvailable() && response.getResults() != null) {
+            for (SemanticSearchResultChunk chunk : response.getResults()) {
+                if (chunk.getArticleId() != null) {
+                    articleRepository.findById(chunk.getArticleId()).ifPresent(article -> {
+                        chunk.setTitle(article.getTitle());
+                        chunk.setSlug(article.getSlug());
+                        if (chunk.getCategory() == null && article.getCategory() != null) {
+                            chunk.setCategory(article.getCategory().name());
+                        }
+                    });
+                }
+            }
+        }
+
+        return response;
+    }
+
+    @Override
+    public IngestionRunResponse runIngestion(String userEmail) {
+        User user = getUserByEmail(userEmail);
+        assertCanRunIngestion(user);
+
+        log.info("Running knowledge vector ingestion triggered by user '{}' (role: {})", userEmail, user.getRole().getName());
+
+        Query query = Query.query(Criteria.where("embedding_status").in("PENDING", null, "FAILED"));
+        List<KnowledgeArticle> pendingArticles = mongoTemplate.find(query, KnowledgeArticle.class);
+
+        if (pendingArticles.isEmpty()) {
+            return IngestionRunResponse.builder()
+                    .articlesDiscovered(0)
+                    .articlesProcessed(0)
+                    .chunksCreated(0)
+                    .chunksEmbedded(0)
+                    .failures(0)
+                    .message("No pending articles requiring vector ingestion")
+                    .build();
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // Safe deterministic transition to PROCESSING
+        for (KnowledgeArticle article : pendingArticles) {
+            article.setEmbeddingStatus("PROCESSING");
+            article.setEmbeddingUpdatedAt(now);
+            articleRepository.save(article);
+        }
+
+        try {
+            IngestionRunResponse result = vectorClient.ingestArticlesBatch(pendingArticles);
+
+            // On success, mark completed
+            for (KnowledgeArticle article : pendingArticles) {
+                article.setEmbeddingStatus("COMPLETED");
+                article.setEmbeddingModel("all-MiniLM-L6-v2");
+                article.setEmbeddingVersion("1.0.0");
+                article.setEmbeddingUpdatedAt(LocalDateTime.now());
+                article.setEmbeddingError(null);
+                articleRepository.save(article);
+            }
+
+            return result;
+
+        } catch (Exception ex) {
+            log.error("Batch vector ingestion failed: {}", ex.getMessage());
+            for (KnowledgeArticle article : pendingArticles) {
+                article.setEmbeddingStatus("FAILED");
+                article.setEmbeddingError(ex.getMessage() != null ? ex.getMessage() : "Vector ingestion failure");
+                article.setEmbeddingUpdatedAt(LocalDateTime.now());
+                articleRepository.save(article);
+            }
+            return IngestionRunResponse.builder()
+                    .articlesDiscovered(pendingArticles.size())
+                    .articlesProcessed(0)
+                    .chunksCreated(0)
+                    .chunksEmbedded(0)
+                    .failures(pendingArticles.size())
+                    .message("Ingestion failed: " + ex.getMessage())
+                    .build();
+        }
+    }
+
+    @Override
+    public ArticleReindexResponse reindexArticle(String id, String userEmail) {
+        User user = getUserByEmail(userEmail);
+        KnowledgeArticle article = getArticleEntity(id);
+
+        assertCanModify(user, article);
+
+        log.info("Reindexing knowledge article #{} '{}' triggered by user '{}'", id, article.getTitle(), userEmail);
+
+        article.setEmbeddingStatus("PENDING");
+        article.setEmbeddingUpdatedAt(LocalDateTime.now());
+        articleRepository.save(article);
+
+        try {
+            ArticleReindexResponse response = vectorClient.reindexArticle(article);
+
+            article.setEmbeddingStatus("COMPLETED");
+            article.setEmbeddingModel("all-MiniLM-L6-v2");
+            article.setEmbeddingVersion("1.0.0");
+            article.setEmbeddingUpdatedAt(LocalDateTime.now());
+            article.setEmbeddingError(null);
+            articleRepository.save(article);
+
+            recordHistory(article.getId(), KnowledgeArticleHistoryAction.UPDATED, user, article.getVersion(),
+                    "Article reindexed in semantic vector index");
+
+            return response;
+
+        } catch (Exception ex) {
+            log.error("Failed to reindex article #{}: {}", id, ex.getMessage());
+            article.setEmbeddingStatus("FAILED");
+            article.setEmbeddingError(ex.getMessage() != null ? ex.getMessage() : "Reindex failure");
+            article.setEmbeddingUpdatedAt(LocalDateTime.now());
+            articleRepository.save(article);
+
+            throw new RuntimeException("Article reindex failed: " + ex.getMessage(), ex);
+        }
+    }
+
+    // =========================================================================
     // Internal Helper Methods & Validations
     // =========================================================================
 
@@ -505,6 +675,12 @@ public class KnowledgeArticleServiceImpl implements KnowledgeArticleService {
     private void assertCanCreate(User user) {
         if (isEmployee(user)) {
             throw new KnowledgeArticleAccessDeniedException("Employees are not authorized to create knowledge articles");
+        }
+    }
+
+    private void assertCanRunIngestion(User user) {
+        if (isEmployee(user)) {
+            throw new KnowledgeArticleAccessDeniedException("Employees are not authorized to trigger knowledge ingestion");
         }
     }
 
@@ -676,6 +852,11 @@ public class KnowledgeArticleServiceImpl implements KnowledgeArticleService {
                 .updatedAt(a.getUpdatedAt())
                 .publishedAt(a.getPublishedAt())
                 .archivedAt(a.getArchivedAt())
+                .embeddingStatus(a.getEmbeddingStatus())
+                .embeddingModel(a.getEmbeddingModel())
+                .embeddingVersion(a.getEmbeddingVersion())
+                .embeddingUpdatedAt(a.getEmbeddingUpdatedAt())
+                .embeddingError(a.getEmbeddingError())
                 .build();
     }
 
@@ -695,6 +876,7 @@ public class KnowledgeArticleServiceImpl implements KnowledgeArticleService {
                 .helpfulCount(a.getHelpfulCount())
                 .updatedAt(a.getUpdatedAt())
                 .publishedAt(a.getPublishedAt())
+                .embeddingStatus(a.getEmbeddingStatus())
                 .build();
     }
 

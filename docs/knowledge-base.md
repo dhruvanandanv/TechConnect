@@ -216,9 +216,13 @@ Database: `techconnect_knowledge`
 
 ---
 
-## 10. Future RAG / AI Copilot Preparation
+## 10. AI Vector Search & Ingestion Integration (Phase 11)
 
-Although Phase 10 strictly excludes AI Copilot, vector indexing, and LLMs, the data model is pre-architected for future RAG pipelines:
-- `normalizedText`: Pre-computed, clean plain-text distillation containing title, summary, symptoms, diagnostics, steps, and tags without markup artifacts.
-- `embeddingStatus`: Enumerated tracking status (`PENDING`, `READY`, `FAILED`) for background vectorization workers in Phase 11.
-- Document chunks can be derived from the structured `problem`, `cause`, and `resolution` fields without complex parsing.
+In Phase 11, the structured Knowledge Base documents from MongoDB are transformed into a dense vector search retrieval engine:
+- `normalizedText`: Distills title, summary, symptoms, diagnostics, steps, and tags deterministically.
+- `embeddingStatus`: Actively tracks the vectorization lifecycle (`PENDING` -> `PROCESSING` -> `COMPLETED` / `FAILED`).
+- **Section-Aware Chunking**: Decomposes articles into structured chunks (`PROBLEM`, `CAUSE`, `RESOLUTION`, `GENERAL`) with 500-char limits and 80-char overlap.
+- **Dense Vector Embedding**: Embeds chunks using `sentence-transformers/all-MiniLM-L6-v2` (384 dimensions) via ONNX Runtime / FastEmbed.
+- **pgvector Retrieval**: Vector chunks are stored in PostgreSQL `knowledge_embedding_chunks` and queried via cosine distance `<=>`.
+- **RAG Preparation**: The retrieved chunks provide grounded context for Phase 12 RAG Copilot synthesis.
+- Complete documentation: [docs/vector-search.md](vector-search.md).

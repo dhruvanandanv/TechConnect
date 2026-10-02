@@ -55,6 +55,9 @@ class KnowledgeArticleServiceTest {
     @Mock
     private MongoTemplate mongoTemplate;
 
+    @Mock
+    private com.techconnect.client.AiKnowledgeVectorClient vectorClient;
+
     @InjectMocks
     private KnowledgeArticleServiceImpl articleService;
 
@@ -722,5 +725,188 @@ class KnowledgeArticleServiceTest {
         assertThatThrownBy(() -> articleService.createArticle(request, engineerUser1.getEmail()))
                 .isInstanceOf(DataAccessResourceFailureException.class)
                 .hasMessageContaining("MongoDB connection timeout");
+    }
+
+    // =========================================================================
+    // Phase 11 Semantic Search & Vector Ingestion Tests
+    // =========================================================================
+
+    @Test
+    @DisplayName("26. Semantic search by employee enforces PUBLISHED status restriction")
+    void testSemanticSearch_EmployeeRestrictedToPublishedOnly() {
+        when(userRepository.findByEmail(employeeUser.getEmail())).thenReturn(Optional.of(employeeUser));
+
+        SemanticSearchResponse mockVectorResp = SemanticSearchResponse.builder()
+                .searchType("SEMANTIC")
+                .query("vpn issues")
+                .available(true)
+                .totalHits(1)
+                .results(List.of(
+                        SemanticSearchResultChunk.builder()
+                                .articleId("art-1")
+                                .chunkId("art-1-res-0")
+                                .section("RESOLUTION")
+                                .similarity(0.88)
+                                .build()
+                ))
+                .build();
+
+        when(vectorClient.semanticSearch(
+                eq("vpn issues"), isNull(), eq(5), eq(0.50),
+                eq(List.of("PUBLISHED")), isNull()
+        )).thenReturn(mockVectorResp);
+
+        KnowledgeArticle articleEntity = KnowledgeArticle.builder()
+                .id("art-1")
+                .title("Corporate VPN Setup")
+                .slug("corporate-vpn-setup")
+                .category(TicketCategory.NETWORK)
+                .build();
+        when(articleRepository.findById("art-1")).thenReturn(Optional.of(articleEntity));
+
+        SemanticSearchRequest request = SemanticSearchRequest.builder()
+                .query("vpn issues")
+                .topK(5)
+                .minSimilarity(0.50)
+                .build();
+
+        SemanticSearchResponse response = articleService.semanticSearch(request, employeeUser.getEmail());
+
+        assertThat(response.isAvailable()).isTrue();
+        assertThat(response.getSearchType()).isEqualTo("SEMANTIC");
+        assertThat(response.getResults()).hasSize(1);
+        assertThat(response.getResults().get(0).getTitle()).isEqualTo("Corporate VPN Setup");
+        assertThat(response.getResults().get(0).getSimilarity()).isEqualTo(0.88);
+
+        verify(vectorClient).semanticSearch(
+                eq("vpn issues"), isNull(), eq(5), eq(0.50),
+                eq(List.of("PUBLISHED")), isNull()
+        );
+    }
+
+    @Test
+    @DisplayName("27. Semantic search failure returns unavailable without crashing")
+    void testSemanticSearch_FailureHandling_ReturnsUnavailable() {
+        when(userRepository.findByEmail(employeeUser.getEmail())).thenReturn(Optional.of(employeeUser));
+        when(vectorClient.semanticSearch(anyString(), any(), any(), any(), any(), any()))
+                .thenReturn(SemanticSearchResponse.unavailable("offline test", "Semantic search is temporarily unavailable."));
+
+        SemanticSearchRequest request = SemanticSearchRequest.builder()
+                .query("offline test")
+                .build();
+
+        SemanticSearchResponse response = articleService.semanticSearch(request, employeeUser.getEmail());
+
+        assertThat(response.isAvailable()).isFalse();
+        assertThat(response.getMessage()).contains("temporarily unavailable");
+        assertThat(response.getResults()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("28. Ingestion run forbidden for employee")
+    void testRunIngestion_EmployeeForbidden_ThrowsAccessDenied() {
+        when(userRepository.findByEmail(employeeUser.getEmail())).thenReturn(Optional.of(employeeUser));
+
+        assertThatThrownBy(() -> articleService.runIngestion(employeeUser.getEmail()))
+                .isInstanceOf(KnowledgeArticleAccessDeniedException.class)
+                .hasMessageContaining("Employees are not authorized");
+    }
+
+    @Test
+    @DisplayName("29. Ingestion run by staff transitions pending articles to completed")
+    void testRunIngestion_StaffSuccess_TransitionsPendingToCompleted() {
+        when(userRepository.findByEmail(engineerUser1.getEmail())).thenReturn(Optional.of(engineerUser1));
+
+        KnowledgeArticle pendingArt = KnowledgeArticle.builder()
+                .id("pending-1")
+                .title("Pending Article")
+                .embeddingStatus("PENDING")
+                .build();
+
+        when(mongoTemplate.find(any(Query.class), eq(KnowledgeArticle.class)))
+                .thenReturn(List.of(pendingArt));
+
+        IngestionRunResponse mockIngestResp = IngestionRunResponse.builder()
+                .articlesDiscovered(1)
+                .articlesProcessed(1)
+                .chunksCreated(3)
+                .chunksEmbedded(3)
+                .failures(0)
+                .message("Ingestion batch completed successfully")
+                .build();
+
+        when(vectorClient.ingestArticlesBatch(anyList())).thenReturn(mockIngestResp);
+
+        IngestionRunResponse response = articleService.runIngestion(engineerUser1.getEmail());
+
+        assertThat(response.getArticlesProcessed()).isEqualTo(1);
+        assertThat(response.getChunksEmbedded()).isEqualTo(3);
+        assertThat(pendingArt.getEmbeddingStatus()).isEqualTo("COMPLETED");
+        assertThat(pendingArt.getEmbeddingModel()).isEqualTo("all-MiniLM-L6-v2");
+    }
+
+    @Test
+    @DisplayName("30. Reindex article updates status and records audit history")
+    void testReindexArticle_Success() {
+        when(userRepository.findByEmail(engineerUser1.getEmail())).thenReturn(Optional.of(engineerUser1));
+
+        KnowledgeArticle article = KnowledgeArticle.builder()
+                .id("art-reindex-1")
+                .title("Reindex Me")
+                .authorId(engineerUser1.getId())
+                .status(ArticleStatus.PUBLISHED)
+                .version(2)
+                .embeddingStatus("COMPLETED")
+                .build();
+
+        when(articleRepository.findById("art-reindex-1")).thenReturn(Optional.of(article));
+
+        ArticleReindexResponse mockResp = ArticleReindexResponse.builder()
+                .articleId("art-reindex-1")
+                .version(2)
+                .status("COMPLETED")
+                .chunksCreated(4)
+                .chunksEmbedded(4)
+                .message("Article reindexed successfully")
+                .build();
+
+        when(vectorClient.reindexArticle(eq(article))).thenReturn(mockResp);
+
+        ArticleReindexResponse response = articleService.reindexArticle("art-reindex-1", engineerUser1.getEmail());
+
+        assertThat(response.getStatus()).isEqualTo("COMPLETED");
+        assertThat(article.getEmbeddingStatus()).isEqualTo("COMPLETED");
+        verify(historyRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("31. Meaningful content update marks article embedding as PENDING")
+    void testUpdateArticle_MeaningfulContentChanged_MarksEmbeddingPending() {
+        when(userRepository.findByEmail(engineerUser1.getEmail())).thenReturn(Optional.of(engineerUser1));
+
+        KnowledgeArticle existing = KnowledgeArticle.builder()
+                .id("art-mod-1")
+                .title("Original Title")
+                .slug("original-title")
+                .summary("Original Summary")
+                .problem("Original Problem")
+                .resolution("Original Resolution")
+                .authorId(engineerUser1.getId())
+                .status(ArticleStatus.PUBLISHED)
+                .version(1)
+                .embeddingStatus("COMPLETED")
+                .build();
+
+        when(articleRepository.findById("art-mod-1")).thenReturn(Optional.of(existing));
+        when(articleRepository.save(any(KnowledgeArticle.class))).thenAnswer(i -> i.getArgument(0));
+
+        UpdateKnowledgeArticleRequest request = UpdateKnowledgeArticleRequest.builder()
+                .resolution("Brand new updated resolution steps for v2")
+                .build();
+
+        KnowledgeArticleResponse updated = articleService.updateArticle("art-mod-1", request, engineerUser1.getEmail());
+
+        assertThat(updated.getVersion()).isEqualTo(2);
+        assertThat(existing.getEmbeddingStatus()).isEqualTo("PENDING");
     }
 }

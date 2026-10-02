@@ -109,6 +109,7 @@ TechConnect/
 - **Phase 8 – Full-Stack Integration Hardening & API Reliability**: COMPLETE
 - **Phase 9 – AI-Powered Ticket Intelligence Service**: COMPLETE
 - **Phase 10 – Knowledge Base Management System**: COMPLETE
+- **Phase 11 – AI Knowledge Ingestion, Embeddings & Vector Search**: COMPLETE
 
 ---
 
@@ -162,6 +163,7 @@ npm run build
 ---
 
 ## Documentation
+- **AI Knowledge Ingestion, Embeddings & Vector Search**: Text normalization, section-aware chunking, SentenceTransformers/FastEmbed (`all-MiniLM-L6-v2`, 384 dimensions), PostgreSQL + pgvector chunk storage, cosine vector retrieval, and version invalidation are documented in [docs/vector-search.md](docs/vector-search.md).
 - **Knowledge Base Management System**: Polyglot persistence, MongoDB document model, RBAC lifecycle state machine, atomic view/feedback metrics, audit history, and future RAG data preparation are documented in [docs/knowledge-base.md](docs/knowledge-base.md).
 - **AI Ticket Intelligence Architecture**: Model training, TF-IDF vectorization, priority inference, team routing, and fallback mechanisms are documented in [docs/ai-ticket-intelligence.md](docs/ai-ticket-intelligence.md).
 - **Full-Stack Integration & Architecture**: Detailed full-stack architecture, API reliability, JWT lifecycle, error handling, CORS, and IDOR matrix are documented in [docs/integration.md](docs/integration.md).

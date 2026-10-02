@@ -5,6 +5,7 @@ import knowledgeService from '../services/knowledgeService';
 import KnowledgeSearchBar from '../components/KnowledgeSearchBar';
 import KnowledgeCategoryFilter from '../components/KnowledgeCategoryFilter';
 import KnowledgeArticleCard from '../components/KnowledgeArticleCard';
+import SemanticSearchResultCard from '../components/SemanticSearchResultCard';
 
 const KnowledgeBase = () => {
   const { currentUser } = useAuth();
@@ -14,20 +15,28 @@ const KnowledgeBase = () => {
 
   // URL state
   const queryParam = searchParams.get('q') || '';
+  const searchTypeParam = searchParams.get('type') || 'SEMANTIC';
   const categoryParam = searchParams.get('category') || 'ALL';
-  const statusParam = searchParams.get('status') || (isStaff ? 'PUBLISHED' : 'PUBLISHED');
+  const statusParam = searchParams.get('status') || 'PUBLISHED';
   const tagParam = searchParams.get('tag') || '';
   const pageParam = parseInt(searchParams.get('page') || '0', 10);
 
   // Component state
   const [articles, setArticles] = useState([]);
+  const [semanticResults, setSemanticResults] = useState([]);
+  const [searchType, setSearchType] = useState(searchTypeParam);
   const [totalElements, setTotalElements] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(pageParam);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [aiUnavailable, setAiUnavailable] = useState(false);
   const [activeStatus, setActiveStatus] = useState(statusParam);
   const [popularTags, setPopularTags] = useState([]);
+
+  // Ingestion Admin state
+  const [ingesting, setIngesting] = useState(false);
+  const [ingestNotification, setIngestNotification] = useState(null);
 
   // Fetch popular tags on mount
   useEffect(() => {
@@ -39,19 +48,43 @@ const KnowledgeBase = () => {
   const loadArticles = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setAiUnavailable(false);
+
     try {
       if (queryParam) {
-        // Keyword Search
-        const data = await knowledgeService.searchArticles({
-          q: queryParam,
-          page: currentPage,
-          size: 9,
-        });
-        setArticles(data.articles || []);
-        setTotalElements(data.totalHits || 0);
-        setTotalPages(data.totalPages || 0);
+        if (searchType === 'SEMANTIC') {
+          // Phase 11 Semantic Vector Search
+          const data = await knowledgeService.semanticSearch({
+            q: queryParam,
+            category: categoryParam !== 'ALL' ? categoryParam : undefined,
+            topK: 12,
+            minSimilarity: 0.35,
+          });
+
+          if (data.available === false) {
+            setAiUnavailable(true);
+            setSemanticResults([]);
+            setTotalElements(0);
+          } else {
+            setSemanticResults(data.results || []);
+            setTotalElements(data.totalHits || (data.results ? data.results.length : 0));
+            setTotalPages(1);
+          }
+          setArticles([]);
+        } else {
+          // Phase 10 Keyword Search
+          const data = await knowledgeService.searchArticles({
+            q: queryParam,
+            page: currentPage,
+            size: 9,
+          });
+          setArticles(data.articles || []);
+          setSemanticResults([]);
+          setTotalElements(data.totalHits || 0);
+          setTotalPages(data.totalPages || 0);
+        }
       } else {
-        // Filtered listing
+        // Standard Filtered listing
         const data = await knowledgeService.getArticles({
           category: categoryParam !== 'ALL' ? categoryParam : undefined,
           status: isStaff ? activeStatus : 'PUBLISHED',
@@ -60,6 +93,7 @@ const KnowledgeBase = () => {
           size: 9,
         });
         setArticles(data.content || []);
+        setSemanticResults([]);
         setTotalElements(data.totalElements || 0);
         setTotalPages(data.totalPages || 0);
       }
@@ -69,29 +103,41 @@ const KnowledgeBase = () => {
     } finally {
       setLoading(false);
     }
-  }, [queryParam, categoryParam, activeStatus, tagParam, currentPage, isStaff]);
+  }, [queryParam, searchType, categoryParam, activeStatus, tagParam, currentPage, isStaff]);
 
   useEffect(() => {
     loadArticles();
   }, [loadArticles]);
 
   // Handlers
-  const handleSearch = (q) => {
+  const handleSearch = (q, type = searchType) => {
     setCurrentPage(0);
     const params = new URLSearchParams(searchParams);
     if (q) {
       params.set('q', q);
+      params.set('type', type);
     } else {
       params.delete('q');
+      params.delete('type');
     }
     params.set('page', '0');
+    setSearchType(type);
     setSearchParams(params);
+  };
+
+  const handleSearchTypeChange = (newType) => {
+    setSearchType(newType);
+    if (queryParam) {
+      const params = new URLSearchParams(searchParams);
+      params.set('type', newType);
+      params.set('page', '0');
+      setSearchParams(params);
+    }
   };
 
   const handleSelectCategory = (catId) => {
     setCurrentPage(0);
     const params = new URLSearchParams(searchParams);
-    params.delete('q'); // Clear search when picking category
     if (catId && catId !== 'ALL') {
       params.set('category', catId);
     } else {
@@ -126,6 +172,29 @@ const KnowledgeBase = () => {
     setSearchParams(params);
   };
 
+  // Staff Ingestion Trigger
+  const handleTriggerIngestion = async () => {
+    if (!isStaff || ingesting) return;
+    setIngesting(true);
+    setIngestNotification(null);
+    try {
+      const res = await knowledgeService.runIngestion();
+      setIngestNotification({
+        type: 'success',
+        message: `Ingestion completed: ${res.articlesProcessed} articles processed, ${res.chunksEmbedded} vector chunks stored.`,
+      });
+      loadArticles();
+    } catch (err) {
+      console.error('Ingestion failed:', err);
+      setIngestNotification({
+        type: 'danger',
+        message: 'Knowledge ingestion failed. Verify that AI microservice is reachable.',
+      });
+    } finally {
+      setIngesting(false);
+    }
+  };
+
   return (
     <div className="container-fluid py-4">
       {/* Page Header */}
@@ -136,28 +205,69 @@ const KnowledgeBase = () => {
               <i className="bi bi-journal-bookmark-fill text-primary me-2"></i>
               Knowledge Base
             </h2>
-            <span className="badge bg-secondary bg-opacity-25 text-light">
-              Phase 10 ITSM
+            <span className="badge bg-info bg-opacity-25 text-info border border-info border-opacity-25">
+              Phase 11 Vector Search
             </span>
           </div>
           <p className="text-secondary small mb-0 mt-1">
-            Browse verified troubleshooting guides, self-service solutions, and IT SOPs.
+            Browse verified troubleshooting guides, self-service solutions, and semantic vector embeddings.
           </p>
         </div>
 
+        {/* Staff Action Controls */}
         {isStaff && (
-          <Link to="/knowledge/articles/new" className="btn btn-primary d-inline-flex align-items-center gap-2">
-            <i className="bi bi-plus-lg"></i>
-            <span>Create Article</span>
-          </Link>
+          <div className="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              className="btn btn-outline-info d-inline-flex align-items-center gap-2"
+              onClick={handleTriggerIngestion}
+              disabled={ingesting}
+              title="Runs batch chunking and vector embedding generation for pending articles"
+            >
+              {ingesting ? (
+                <>
+                  <span className="spinner-border spinner-border-sm" role="status"></span>
+                  <span>Ingesting Chunks...</span>
+                </>
+              ) : (
+                <>
+                  <i className="bi bi-cpu"></i>
+                  <span>Run AI Ingestion</span>
+                </>
+              )}
+            </button>
+
+            <Link to="/knowledge/articles/new" className="btn btn-primary d-inline-flex align-items-center gap-2">
+              <i className="bi bi-plus-lg"></i>
+              <span>Create Article</span>
+            </Link>
+          </div>
         )}
       </div>
+
+      {/* Staff Ingestion Alert Notification */}
+      {ingestNotification && (
+        <div className={`alert alert-${ingestNotification.type} alert-dismissible fade show mb-4`} role="alert">
+          <i className="bi bi-info-circle-fill me-2"></i>
+          {ingestNotification.message}
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setIngestNotification(null)}
+          ></button>
+        </div>
+      )}
 
       {/* Main Search Hero Bar */}
       <div className="card bg-dark border-secondary p-4 mb-4 shadow-sm">
         <div className="row justify-content-center">
           <div className="col-12 col-lg-9">
-            <KnowledgeSearchBar initialValue={queryParam} onSearch={handleSearch} />
+            <KnowledgeSearchBar
+              initialValue={queryParam}
+              searchType={searchType}
+              onSearch={handleSearch}
+              onSearchTypeChange={handleSearchTypeChange}
+            />
 
             {/* Popular tags row */}
             {popularTags.length > 0 && (
@@ -185,7 +295,7 @@ const KnowledgeBase = () => {
       </div>
 
       {/* Staff Status Navigation Tabs */}
-      {isStaff && (
+      {isStaff && !queryParam && (
         <div className="d-flex gap-2 border-bottom border-secondary border-opacity-50 pb-2 mb-3">
           <button
             type="button"
@@ -211,20 +321,26 @@ const KnowledgeBase = () => {
         </div>
       )}
 
-      {/* Active Filter Indicators */}
+      {/* Active Filter Indicators & Search Mode Badge */}
       <div className="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <div className="d-flex align-items-center flex-wrap gap-2">
           {queryParam && (
-            <span className="badge bg-primary d-inline-flex align-items-center gap-2 px-3 py-2">
-              <i className="bi bi-search"></i>
-              Query: &quot;{queryParam}&quot;
-              <button
-                type="button"
-                className="btn-close btn-close-white ms-1"
-                style={{ fontSize: '0.65rem' }}
-                onClick={() => handleSearch('')}
-              ></button>
-            </span>
+            <>
+              <span className={`badge ${searchType === 'SEMANTIC' ? 'bg-info text-dark' : 'bg-primary'} d-inline-flex align-items-center gap-2 px-3 py-2`}>
+                <i className={searchType === 'SEMANTIC' ? 'bi bi-cpu-fill' : 'bi bi-search'}></i>
+                Search Type: <strong>{searchType === 'SEMANTIC' ? 'Semantic (AI Vector)' : 'Keyword'}</strong>
+              </span>
+
+              <span className="badge bg-dark border border-secondary text-light d-inline-flex align-items-center gap-2 px-3 py-2">
+                Query: &quot;{queryParam}&quot;
+                <button
+                  type="button"
+                  className="btn-close btn-close-white ms-1"
+                  style={{ fontSize: '0.65rem' }}
+                  onClick={() => handleSearch('')}
+                ></button>
+              </span>
+            </>
           )}
 
           {tagParam && (
@@ -241,7 +357,7 @@ const KnowledgeBase = () => {
           )}
 
           <span className="text-secondary small">
-            Found <strong>{totalElements}</strong> {totalElements === 1 ? 'article' : 'articles'}
+            Found <strong>{totalElements}</strong> {queryParam && searchType === 'SEMANTIC' ? (totalElements === 1 ? 'matching chunk' : 'matching chunks') : (totalElements === 1 ? 'article' : 'articles')}
           </span>
         </div>
 
@@ -252,26 +368,93 @@ const KnowledgeBase = () => {
         />
       </div>
 
+      {/* AI Vector Service Offline Alert */}
+      {aiUnavailable && (
+        <div className="alert alert-warning bg-warning bg-opacity-10 border-warning border-opacity-25 text-warning d-flex align-items-center justify-content-between mb-4">
+          <div>
+            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+            Semantic search is temporarily unavailable. Keyword search remains fully operational.
+          </div>
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-warning"
+            onClick={() => handleSearch(queryParam, 'KEYWORD')}
+          >
+            Switch to Keyword Search
+          </button>
+        </div>
+      )}
+
       {/* Content Area */}
       {loading ? (
         <div className="text-center py-5">
           <div className="spinner-border text-primary" role="status"></div>
-          <div className="text-secondary small mt-2">Loading knowledge articles...</div>
+          <div className="text-secondary small mt-2">
+            {queryParam && searchType === 'SEMANTIC'
+              ? 'Computing query embeddings and cosine distance...'
+              : 'Loading knowledge articles...'}
+          </div>
         </div>
       ) : error ? (
         <div className="alert alert-danger bg-danger bg-opacity-10 border-danger border-opacity-25 text-danger">
           <i className="bi bi-exclamation-triangle-fill me-2"></i> {error}
         </div>
+      ) : (queryParam && searchType === 'SEMANTIC') ? (
+        // Render Semantic Vector Search Results
+        semanticResults.length === 0 ? (
+          <div className="card bg-dark border-secondary text-center py-5 p-4">
+            <i className="bi bi-cpu text-secondary fs-1 mb-3"></i>
+            <h4 className="text-white">No semantic matches found</h4>
+            <p className="text-secondary small mb-3">
+              No knowledge chunks met the minimum similarity threshold for &quot;{queryParam}&quot;.
+              Try rephrasing your question or switch to keyword search.
+            </p>
+            <div className="d-flex justify-content-center gap-2">
+              <button
+                type="button"
+                className="btn btn-outline-primary btn-sm"
+                onClick={() => handleSearch(queryParam, 'KEYWORD')}
+              >
+                Try Keyword Search
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline-secondary text-light btn-sm"
+                onClick={() => handleSearch('')}
+              >
+                Clear Search
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="row g-4">
+            {semanticResults.map((result) => (
+              <div key={result.chunkId} className="col-12 col-md-6 col-lg-6">
+                <SemanticSearchResultCard result={result} />
+              </div>
+            ))}
+          </div>
+        )
       ) : articles.length === 0 ? (
+        // Empty state for regular / keyword search
         <div className="card bg-dark border-secondary text-center py-5 p-4">
           <i className="bi bi-journal-x fs-1 text-secondary mb-3"></i>
           <h4 className="text-white">No knowledge articles found</h4>
           <p className="text-secondary small mb-3">
             {queryParam
-              ? `No articles matched your keyword query "${queryParam}". Try searching with alternate terminology or clear filters.`
+              ? `No articles matched your keyword query "${queryParam}". Try searching with semantic search or alternate terms.`
               : 'There are currently no articles matching the selected category and status filters.'}
           </p>
           <div className="d-flex justify-content-center gap-2">
+            {queryParam && (
+              <button
+                type="button"
+                className="btn btn-outline-info btn-sm"
+                onClick={() => handleSearch(queryParam, 'SEMANTIC')}
+              >
+                Try Semantic Search (AI)
+              </button>
+            )}
             {(queryParam || tagParam || categoryParam !== 'ALL') && (
               <button
                 type="button"
@@ -293,6 +476,7 @@ const KnowledgeBase = () => {
           </div>
         </div>
       ) : (
+        // Render Standard / Keyword Article Cards
         <>
           <div className="row g-4">
             {articles.map((article) => (

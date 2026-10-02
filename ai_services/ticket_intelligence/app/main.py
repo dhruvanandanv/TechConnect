@@ -5,8 +5,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import health, intelligence
+from app.routers import health, intelligence, knowledge_vector
 from app.services.predictor import predictor
+from app.embeddings.model import get_embedding_model
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -21,6 +22,11 @@ async def lifespan(app: FastAPI):
     if not predictor.is_loaded():
         logger.warning("Predictor model not loaded. Attempting initialization...")
         predictor._load_or_train_model()
+    # Initialize embedding model once at startup
+    try:
+        get_embedding_model()
+    except Exception as e:
+        logger.warning("Embedding model eager load warning: %s", e)
     yield
     logger.info("Shutting down Ticket Intelligence Service...")
 
@@ -43,6 +49,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(intelligence.router)
+app.include_router(knowledge_vector.router)
 
 
 @app.get("/")

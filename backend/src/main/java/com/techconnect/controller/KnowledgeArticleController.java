@@ -67,6 +67,35 @@ public class KnowledgeArticleController {
         return ResponseEntity.ok(response);
     }
 
+    // =========================================================================
+    // Phase 11 Semantic Search (Dense Vector Retrieval)
+    // =========================================================================
+
+    @GetMapping("/semantic-search")
+    public ResponseEntity<SemanticSearchResponse> semanticSearchGet(
+            @RequestParam(name = "q", defaultValue = "") String query,
+            @RequestParam(required = false) TicketCategory category,
+            @RequestParam(required = false, defaultValue = "5") Integer topK,
+            @RequestParam(required = false, defaultValue = "0.50") Double minSimilarity,
+            Authentication authentication) {
+        SemanticSearchRequest request = SemanticSearchRequest.builder()
+                .query(query)
+                .category(category)
+                .topK(topK)
+                .minSimilarity(minSimilarity)
+                .build();
+        SemanticSearchResponse response = articleService.semanticSearch(request, authentication.getName());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/semantic-search")
+    public ResponseEntity<SemanticSearchResponse> semanticSearchPost(
+            @Valid @RequestBody SemanticSearchRequest request,
+            Authentication authentication) {
+        SemanticSearchResponse response = articleService.semanticSearch(request, authentication.getName());
+        return ResponseEntity.ok(response);
+    }
+
     @GetMapping("/categories")
     public ResponseEntity<List<String>> getCategories() {
         return ResponseEntity.ok(articleService.getCategories());
@@ -75,6 +104,26 @@ public class KnowledgeArticleController {
     @GetMapping("/tags")
     public ResponseEntity<List<String>> getTags() {
         return ResponseEntity.ok(articleService.getTags());
+    }
+
+    // =========================================================================
+    // Knowledge Vector Ingestion & Reindexing (Staff Only)
+    // =========================================================================
+
+    @PostMapping("/ingestion/run")
+    public ResponseEntity<IngestionRunResponse> runIngestion(Authentication authentication) {
+        log.info("REST request to trigger knowledge ingestion by user '{}'", authentication.getName());
+        IngestionRunResponse response = articleService.runIngestion(authentication.getName());
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/articles/{id}/reindex")
+    public ResponseEntity<ArticleReindexResponse> reindexArticle(
+            @PathVariable String id,
+            Authentication authentication) {
+        log.info("REST request to reindex knowledge article #{} by user '{}'", id, authentication.getName());
+        ArticleReindexResponse response = articleService.reindexArticle(id, authentication.getName());
+        return ResponseEntity.ok(response);
     }
 
     // =========================================================================

@@ -86,6 +86,20 @@ const KnowledgeArticleView = () => {
     }
   };
 
+  const handleReindex = async () => {
+    setActionLoading(true);
+    try {
+      const res = await knowledgeService.reindexArticle(article.id);
+      alert(`Article reindexed successfully (${res.chunksEmbedded || 0} vector chunks embedded).`);
+      const updated = await knowledgeService.getArticleById(article.id);
+      setArticle(updated);
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to reindex article');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   const handleOpenHistory = async () => {
     setHistoryOpen(true);
     setHistoryLoading(true);
@@ -165,6 +179,17 @@ const KnowledgeArticleView = () => {
                 v{article.version}
               </span>
               <KnowledgeArticleStatusBadge status={article.status} />
+              {isStaff && article.embeddingStatus && (
+                <span className={`badge border px-2 py-1 ${
+                  article.embeddingStatus === 'COMPLETED' ? 'bg-success bg-opacity-10 text-success border-success' :
+                  article.embeddingStatus === 'PROCESSING' ? 'bg-info bg-opacity-10 text-info border-info' :
+                  article.embeddingStatus === 'FAILED' ? 'bg-danger bg-opacity-10 text-danger border-danger' :
+                  'bg-warning bg-opacity-10 text-warning border-warning'
+                }`}>
+                  <i className="bi bi-cpu me-1"></i>
+                  Vectors: {article.embeddingStatus}
+                </span>
+              )}
               {article.sourceType === 'TICKET' && article.sourceTicketId && (
                 <span className="badge bg-info bg-opacity-10 text-info border border-info border-opacity-25 px-2 py-1">
                   <i className="bi bi-link-45deg me-1"></i>
@@ -202,6 +227,19 @@ const KnowledgeArticleView = () => {
                   <i className="bi bi-pencil"></i>
                   <span>Edit</span>
                 </Link>
+              )}
+
+              {canManage && (
+                <button
+                  type="button"
+                  className="btn btn-outline-info btn-sm d-inline-flex align-items-center gap-1"
+                  onClick={handleReindex}
+                  disabled={actionLoading}
+                  title="Re-embed and sync article vectors"
+                >
+                  <i className="bi bi-cpu"></i>
+                  <span>Reindex</span>
+                </button>
               )}
 
               {canManage && article.status !== 'PUBLISHED' && (

@@ -289,8 +289,12 @@ Stores structured troubleshooting documentation, SOPs, and knowledge articles.
 | `updated_at` | Date | Single | Last modification timestamp |
 | `published_at` | Date | None | Date published to enterprise catalog |
 | `archived_at` | Date | None | Date retired from public catalog |
-| `normalized_text` | String | None | Pre-synthesized plain text for future RAG |
-| `embedding_status` | String | None | Dormant placeholder for Phase 11 (`PENDING`) |
+| `normalized_text` | String | None | Pre-synthesized plain text for RAG chunking |
+| `embedding_status` | String (Enum) | Single | Ingestion lifecycle: `PENDING`, `PROCESSING`, `COMPLETED`, `FAILED` |
+| `embedding_model` | String | None | Embedding model tag (e.g. `sentence-transformers/all-MiniLM-L6-v2`) |
+| `embedding_version` | Int32 | None | Model/chunker schema version (default: 1) |
+| `embedding_updated_at` | Date | None | Timestamp of last successful vector embedding |
+| `embedding_error` | String | None | Safe error message if embedding ingestion fails |
 
 ### 5.2 Collection: `knowledge_article_history`
 Maintains an immutable audit log of revisions and lifecycle transitions.
@@ -311,6 +315,47 @@ Maintains an immutable audit log of revisions and lifecycle transitions.
 - **No Foreign Key Constraints**: PostgreSQL and MongoDB operate as independent database engines. Foreign key constraints across database boundaries do not exist.
 - **Application-Enforced Integrity**: Spring Boot services validate `author_id` against PostgreSQL `UserRepository` and verify role permissions prior to mutating MongoDB documents.
 - **Eventual Consistency**: If a user is deactivated or renamed in PostgreSQL, article authorship preserves historical fidelity without relational cascade failures.
+
+---
+
+## 6. PostgreSQL + pgvector Vector Storage Specification (Phase 11)
+
+### 6.1 Database Extension
+```sql
+CREATE EXTENSION IF NOT EXISTS vector;
+```
+
+### 6.2 Table: `knowledge_embedding_chunks`
+Stores dense mathematical vector representations of chunked knowledge articles.
+
+| Column | SQL Type | Constraints | Description |
+|---|---|---|---|
+| `id` | BIGSERIAL | PRIMARY KEY | Unique integer sequence identifier |
+| `article_id` | VARCHAR(64) | NOT NULL, INDEX | Foreign key reference to MongoDB `knowledge_articles._id` |
+| `chunk_id` | VARCHAR(80) | UNIQUE NOT NULL | Deterministic identifier (`{article_id}-{chunk_index}`) |
+| `chunk_index` | INT | NOT NULL | Sequential index of chunk within article (0, 1, 2...) |
+| `article_version` | INT | NOT NULL | Article version number at time of embedding generation |
+| `section` | VARCHAR(50) | NOT NULL | Structural section (`TITLE`, `PROBLEM`, `CAUSE`, `RESOLUTION`, `GENERAL`) |
+| `chunk_text` | TEXT | NOT NULL | Content payload of the chunk (max ~500 chars) |
+| `category` | VARCHAR(50) | NULL | Ticket category classification for filtered retrieval |
+| `tags` | TEXT[] / VARCHAR[] | NULL | Associated keyword tags |
+| `embedding` | vector(384) | NOT NULL | Dense 384-dimensional vector (`all-MiniLM-L6-v2`) |
+| `embedding_model` | VARCHAR(100) | NOT NULL | Model identifier used to generate vector |
+| `status` | VARCHAR(20) | NOT NULL | Article publication status (`PUBLISHED`, `DRAFT`, `ARCHIVED`) for RBAC filtering |
+| `created_at` | TIMESTAMP | NOT NULL | Timestamp when vector chunk was generated |
+
+### 6.3 Vector Indexes & Distance Metric
+- **Index Type**: Hierarchical Navigable Small World (`HNSW`) index
+  ```sql
+  CREATE INDEX idx_chunks_embedding_hnsw 
+  ON knowledge_embedding_chunks 
+  USING hnsw (embedding vector_cosine_ops)
+  WITH (m = 16, ef_construction = 64);
+  ```
+- **Distance Operator**: `<=>` (Cosine Distance)
+- **Similarity Conversion Formula**:
+  $$\text{Cosine Similarity} = 1.0 - (\text{embedding} \iff \text{query\_vector})$$
+- **Why Cosine Distance?**: Standard text embedding models like `all-MiniLM-L6-v2` normalize embeddings to unit length. Cosine similarity measures directional alignment irrespective of magnitude, producing intuitive similarity scores between 0.0 (orthogonal/unrelated) and 1.0 (identical semantics).
 
 
 

@@ -72,4 +72,50 @@ Spring Boot KnowledgeArticleController (/api/knowledge/**)
 - **Pre-computed RAG Structure**: Articles synthesize clean `normalized_text` blocks and record `embedding_status`, preparing seamless ingestion for future Phase 11 vector search without refactoring document schemas.
 - **No Direct Frontend-to-Mongo Access**: The React client communicates strictly via authenticated Spring Boot APIs. MongoDB connection strings and internal collections are never exposed to the browser.
 
+## 6. AI Knowledge Ingestion, Embeddings & Vector Search Architecture (Phase 11)
+
+```
+React Client (Knowledge Base Portal)
+       |
+       | REST + Bearer JWT (Semantic Search / Ingestion Run / Reindex)
+       v
+Spring Boot KnowledgeArticleController (/api/knowledge/semantic-search, /ingestion/run, /articles/{id}/reindex)
+       |
+       +---> Spring Security / RBAC Gate
+       |        - Employee: PUBLISHED articles only
+       |        - Engineer: PUBLISHED + own authored articles
+       |        - Manager / Admin: Unrestricted access
+       |
+       +---> AiKnowledgeVectorClient (Spring RestClient)
+       |        |
+       |        | HTTP POST /api/v1/knowledge-vector/*
+       |        v
+       +---> Python AI Service (app/embeddings & app/vector)
+                |
+                +---> Normalizer (Deterministic: TITLE, SUMMARY, PROBLEM, CAUSE, RESOLUTION, CATEGORY, TAGS)
+                +---> Chunker (Section-aware, sentence-boundary, 500 chars max, 80 chars overlap)
+                +---> Embedding Generator (FastEmbed/ONNX Runtime: all-MiniLM-L6-v2, 384 dimensions)
+                +---> Vector Repository (PostgreSQL + pgvector / HNSW Cosine Distance Index)
+                |        |
+                |        v
+                |     PostgreSQL Table: knowledge_embedding_chunks
+                |        - article_id, chunk_id, chunk_index, article_version, section,
+                |          chunk_text, category, tags, embedding (vector(384)), status
+                |
+                +---> MongoDB Sync (MongoDB remains authoritative document source)
+                         - Updates embeddingStatus: PENDING -> PROCESSING -> COMPLETED / FAILED
+                         - Invalidates old chunks upon article version increments or edits
+```
+
+### 6.1 Polyglot Architectural Principles
+1. **Source of Truth vs Retrieval Store**:
+   - **MongoDB (`knowledge_articles`)**: Retains complete, authoritative knowledge article documents, revision counters, and engagement metrics.
+   - **PostgreSQL + pgvector (`knowledge_embedding_chunks`)**: Retains pre-chunked, dense 384-dimensional vector representations strictly optimized for nearest-neighbor similarity search.
+   - **Loose Coupling**: Articles and chunks are linked via the string identifier `articleId`. There are no cross-database foreign keys.
+2. **Version Consistency & Invalidation**:
+   - When an article is edited or updated, its `version` counter increments and `embeddingStatus` resets to `PENDING`.
+   - Reindexing removes stale chunk vectors before ingesting new representations, ensuring outdated content is never returned by vector retrieval.
+3. **Graceful Degradation**:
+   - If the Python vector service or pgvector database is unreachable, semantic search returns a graceful status payload (`available: false`), and keyword search remains 100% operational without application-wide outages.
+
 

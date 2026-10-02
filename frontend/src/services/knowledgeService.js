@@ -110,6 +110,38 @@ export const knowledgeService = {
     const response = await api.get('/knowledge/tags');
     return response.data;
   },
+
+  /**
+   * Executes dense vector semantic search across knowledge article chunks.
+   */
+  async semanticSearch({ q, category, topK = 5, minSimilarity = 0.40 } = {}) {
+    const payload = {
+      query: q || '',
+      topK,
+      minSimilarity,
+    };
+    if (category && category !== 'ALL') {
+      payload.category = category;
+    }
+    const response = await api.post('/knowledge/semantic-search', payload);
+    return response.data;
+  },
+
+  /**
+   * Triggers batch ingestion and embedding for pending articles (Staff only).
+   */
+  async runIngestion() {
+    const response = await api.post('/knowledge/ingestion/run');
+    return response.data;
+  },
+
+  /**
+   * Reindexes a single article version into the semantic vector database.
+   */
+  async reindexArticle(id) {
+    const response = await api.post(`/knowledge/articles/${id}/reindex`);
+    return response.data;
+  },
 };
 
 export default knowledgeService;

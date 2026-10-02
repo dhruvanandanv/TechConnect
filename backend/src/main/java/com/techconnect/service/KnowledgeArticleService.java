@@ -40,4 +40,14 @@ public interface KnowledgeArticleService {
     List<String> getCategories();
 
     List<String> getTags();
+
+    // =========================================================================
+    // Phase 11 Semantic Search & Vector Ingestion
+    // =========================================================================
+
+    SemanticSearchResponse semanticSearch(SemanticSearchRequest request, String userEmail);
+
+    IngestionRunResponse runIngestion(String userEmail);
+
+    ArticleReindexResponse reindexArticle(String id, String userEmail);
 }

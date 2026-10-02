@@ -41,4 +41,9 @@ public class KnowledgeArticleResponse {
     private LocalDateTime updatedAt;
     private LocalDateTime publishedAt;
     private LocalDateTime archivedAt;
+    private String embeddingStatus;
+    private String embeddingModel;
+    private String embeddingVersion;
+    private LocalDateTime embeddingUpdatedAt;
+    private String embeddingError;
 }

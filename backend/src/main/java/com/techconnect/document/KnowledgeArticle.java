@@ -123,11 +123,24 @@ public class KnowledgeArticle {
     @Field("archived_at")
     private LocalDateTime archivedAt;
 
-    // --- Future RAG / Embeddings Preparation Fields (Dormant in Phase 10) ---
+    // --- Semantic Search / Vector Embedding Fields (Phase 11) ---
     @Field("normalized_text")
     private String normalizedText;
 
+    @Indexed
     @Field("embedding_status")
     @Builder.Default
-    private String embeddingStatus = "PENDING"; // PENDING, READY, FAILED
+    private String embeddingStatus = "PENDING"; // PENDING, PROCESSING, COMPLETED, FAILED
+
+    @Field("embedding_model")
+    private String embeddingModel;
+
+    @Field("embedding_version")
+    private String embeddingVersion;
+
+    @Field("embedding_updated_at")
+    private LocalDateTime embeddingUpdatedAt;
+
+    @Field("embedding_error")
+    private String embeddingError;
 }
