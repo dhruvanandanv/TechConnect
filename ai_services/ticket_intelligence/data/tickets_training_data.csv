@@ -1,0 +1,161 @@
+title,description,category
+"Laptop screen flickering","My ThinkPad display flickers continuously and turns completely black when tilted.",HARDWARE
+"Keyboard keys not responding","Several keys including Spacebar and Enter on my corporate laptop stopped working.",HARDWARE
+"Docking station not detecting dual monitors","The USB-C Dell docking station won't detect my secondary monitors after reboot.",HARDWARE
+"Wireless mouse cursor jumping erratically","The Bluetooth mouse jumps across the screen and the scroll wheel is broken.",HARDWARE
+"Laptop battery draining rapidly and overheating","Battery discharges in 20 minutes and the fan makes loud grinding noises.",HARDWARE
+"External hard drive not mounting","The company-issued Western Digital external drive is not recognized by Windows.",HARDWARE
+"Webcam not functioning in conference room","The Logitech meeting room conference camera shows a blank black video feed.",HARDWARE
+"Headset microphone not capturing audio","My Jabra USB headset speakers work but the boom mic input is silent.",HARDWARE
+"Printer paper jam in 3rd floor office","The shared Canon office printer displays a recurring paper jam error in Tray 2.",HARDWARE
+"Laptop charger cable frayed","The power supply adapter wire is frayed near the connector and sparks.",HARDWARE
+"Standing desk power control failure","The motorized height adjustable desk will not raise or lower in pod 4.",HARDWARE
+"Monitor power button unresponsive","The 27 inch Dell monitor power LED does not turn on even when plugged into wall.",HARDWARE
+"Trackpad clicker physically jammed","The trackpad is swollen and physically stuck down, cannot right click.",HARDWARE
+"Barcode scanner not scanning asset tags","The Honeywell handheld USB barcode scanner has stopped reading 2D codes.",HARDWARE
+"Conference room TV display has vertical red lines","The wall mounted 65 inch Samsung screen in boardroom B has line artifacts.",HARDWARE
+"MacBook power brick overheating","The 96W USB-C Apple power adapter gets burning hot to the touch and stops charging.",HARDWARE
+"External mechanical keyboard key chatter","Every keystroke outputs double letters on the USB mechanical keyboard.",HARDWARE
+"Secondary display port adapter loose","DisplayPort to HDMI adapter connection drops whenever the desk is bumped.",HARDWARE
+"Broken laptop hinge","Left hinge cracked when opening clamshell lid and bezel is separating from screen.",HARDWARE
+"Smartcard reader hardware unrecognized","Built-in CAC smart card reader does not detect inserted employee ID badge.",HARDWARE
+"Excel crashing when running large vlookup macros","Microsoft Excel freezes with Out of Memory error when recalculating pivot tables.",SOFTWARE
+"Docker Desktop fails to initialize engine","Docker daemon crashes upon startup with exit code 1 after Windows update.",SOFTWARE
+"IntelliJ IDEA throwing IDE internal error","Java IDE repeatedly crashes when indexing enterprise codebase project files.",SOFTWARE
+"Salesforce plugin sync error in Outlook","Salesforce side panel displays error 500 when logging customer communications.",SOFTWARE
+"Slack desktop app white blank screen","Slack opens to an empty white window and clearing application cache did not resolve it.",SOFTWARE
+"Postman unable to send API requests","Postman client hangs on sending request with socket hang up exception.",SOFTWARE
+"NodeJS npm install failing with permission denied","NPM package manager throws EACCES errors when trying to install frontend modules.",SOFTWARE
+"VS Code extensions crashing continuously","Python and ESLint extensions crash immediately upon opening workspace editor.",SOFTWARE
+"SAP ERP client connection timeout","SAP GUI reports communication failure with application server on port 3200.",SOFTWARE
+"Adobe Acrobat Pro license activation failed","Acrobat says subscription has expired even though IT assigned the license.",SOFTWARE
+"Google Chrome crashing on opening PDF previews","Chrome tabs crash with error code STATUS_ACCESS_VIOLATION when opening PDF bills.",SOFTWARE
+"Git CLI throwing index.lock file exists","Git command line aborts commits stating Unable to create index.lock File exists.",SOFTWARE
+"Zoom desktop client crashing during screenshare","Whenever I share screen 2 in a meeting Zoom closes abruptly without error.",SOFTWARE
+"Python virtual environment missing core packages","Venv activation fails with missing DLL errors after Windows path update.",SOFTWARE
+"Tableau desktop unable to refresh database extract","Data extract refresh fails with connection reset by peer on SQL database.",SOFTWARE
+"Microsoft Teams keeps signing out in infinite loop","Teams application asks for credentials repeatedly in an authentication loop.",SOFTWARE
+"Jira desktop assistant not loading tickets","Jira widget displays unable to load agile board issue items.",SOFTWARE
+"Web browser cannot load local development server","Localhost 3000 connection refused in Chrome and Firefox browsers.",SOFTWARE
+"Figma desktop app high memory leak","Figma process consumes 12GB of RAM causing the entire operating system to stutter.",SOFTWARE
+"MySQL Workbench query editor syntax highlighter freeze","Workbench UI hangs indefinitely when pasting SQL script over 500 lines.",SOFTWARE
+"Internet connection drops every ten minutes","Office Wi-Fi disconnects intermittently across the entire finance floor.",NETWORK
+"Cannot access internal corporate subnet","Unable to ping servers in the 10.200.0.0/16 private intranet subnet.",NETWORK
+"Wi-Fi connected with no internet access warning","Laptop connects to TechConnect-Corp SSID but shows yellow exclamation mark.",NETWORK
+"Extremely high network latency and packet loss","Pinging default gateway shows 45% packet loss and 800ms ping latency.",NETWORK
+"DNS resolution failing for internal hostnames","Cannot resolve wiki.internal.corp or gitlab.local domain names.",NETWORK
+"Ethernet wall port in desk 42 inactive","Plugging Cat6 ethernet cable into wall jack shows no link light on RJ45 port.",NETWORK
+"Corporate Wi-Fi authentication certificate expired","802.1X enterprise wireless network rejects connection with expired radius cert.",NETWORK
+"Guest Wi-Fi portal page not redirecting","Visitors cannot access the captive portal landing page to agree to terms.",NETWORK
+"Network bandwidth throttle on engineering switch","Gigabit network drops to 10Mbps half duplex on Cisco floor switch.",NETWORK
+"DHCP server not assigning IPv4 address","Network adapter stuck on 169.254 APIPA autoconfiguration address.",NETWORK
+"Network printer unreachable via IP address","Cannot connect to network printer at 192.168.10.50 via socket 9100.",NETWORK
+"Packet loss during video calls on 5GHz band","Frequent audio dropouts and packet drops on office wireless network access points.",NETWORK
+"Traceroute failing at core router hop","Traceroute to cloud gateway times out after crossing building distribution router.",NETWORK
+"Subnet gateway unreachable from test lab","Devices in VLAN 40 cannot reach default gateway 10.40.0.1.",NETWORK
+"VoIP IP phone displays network cable disconnected","Cisco desk phone loses power over ethernet and reports no ethernet link.",NETWORK
+"Static IP address conflict detected","Windows warning: Another computer on this network has the same IP address.",NETWORK
+"Network shares SMB connection timeout","File explorer hangs when attempting to map network drive smb://fileserver/dept.",NETWORK
+"Wireless access point blinking amber LED","Aruba AP in hallway ceiling is flashing amber and not broadcasting SSID.",NETWORK
+"Firewall blocking outgoing HTTPS traffic to staging server","Outbound connections to port 8443 on staging environment get dropped.",NETWORK
+"Intermittent routing loop between office and datacenter","BGP route flaps causing intermittent loss of connectivity to secondary site.",NETWORK
+"Suspicious phishing email with macro attachment","Received an unexpected invoice email from external domain containing zip file.",SECURITY
+"Potential malware infection detected on workstation","Antivirus popup alerted about Trojan.Win32 detected in downloads folder.",SECURITY
+"Account compromised with unauthorized logins from Russia","Microsoft 365 security log shows foreign IP access to my email account.",SECURITY
+"Ransomware warning notification on desktop background","Desktop wallpaper changed to a ransom note demanding bitcoin payment.",SECURITY
+"Antivirus agent disabled and will not start","CrowdStrike Falcon sensor service is stopped and access is denied to start it.",SECURITY
+"Suspicious USB drive found in company parking lot","Found unlabeled flash drive near entrance and submitting for forensic check.",SECURITY
+"Security warning SSL certificate untrusted on internal portal","Browser displays dangerous website warning and certificate authority unknown.",SECURITY
+"Data leak alert: sensitive customer database query","DLP monitoring flagged an unusually large export of customer PII records.",SECURITY
+"Brute force SSH attempt detected on jump server","Auth.log shows thousands of failed root login attempts from foreign IP.",SECURITY
+"Unauthorized software installed without admin rights","Found unknown cryptocurrency mining executable running in user AppData folder.",SECURITY
+"Phishing email impersonating company CEO for gift cards","Urgent email pretending to be executive requesting mobile phone numbers.",SECURITY
+"Suspicious outbound network traffic on port 4444","Endpoint detection tool reported reverse shell beaconing from workstation.",SECURITY
+"Security audit compliance failure on hard drive encryption","BitLocker drive encryption is turned off and cannot be re-enabled.",SECURITY
+"Security breach notification received from third party vendor","Payroll provider notified us of a credential stuffing incident affecting staff.",SECURITY
+"Suspicious PowerShell script executed in background","Windows Defender flagged obfuscated base64 encoded powershell command.",SECURITY
+"Stolen company laptop reported by employee","MacBook left in car overnight was stolen, requesting remote wipe of device.",SECURITY
+"Privilege escalation attempt detected on domain controller","Event log 4672 alerted on unauthorized administrative privilege assignment.",SECURITY
+"DDoS attack impacting public customer login portal","Web servers flooded with SYN packets causing 503 service unavailable.",SECURITY
+"Unauthorized Wi-Fi rogue access point detected","Security scanner identified an unauthorized rogue router on corporate floor.",SECURITY
+"Employee clicked on malicious link in fake HR email","Staff member entered credentials into a fraudulent OpenSSL survey page.",SECURITY
+"Need access to Production AWS environment","Requesting IAM read and write permissions to AWS production Kubernetes cluster.",ACCESS_MANAGEMENT
+"Active Directory password reset required","Account locked out after three failed attempts, need password unlock and reset.",ACCESS_MANAGEMENT
+"Permission denied accessing shared marketing Google Drive","Cannot access confidential product launch folder on enterprise drive.",ACCESS_MANAGEMENT
+"Role upgrade request for senior engineer promotion","Need database admin permissions following recent department role change.",ACCESS_MANAGEMENT
+"Multi-Factor Authentication device lost","Replaced smartphone and cannot authenticate with Microsoft Authenticator app.",ACCESS_MANAGEMENT
+"GitHub enterprise organization invitation expired","Need invitation re-sent to join TechConnect GitHub organization repos.",ACCESS_MANAGEMENT
+"Cannot access Snowflake data warehouse schema","Received SQL authorization error: Object does not exist or not authorized.",ACCESS_MANAGEMENT
+"New hire onboarding account provisioning","New frontend developer joining next Monday needs Git, Jira, and AWS accounts.",ACCESS_MANAGEMENT
+"Offboarding access revocation for departing contractor","Contractor finished engagement, please terminate corporate AD and VPN accounts.",ACCESS_MANAGEMENT
+"Temporary root access required for server maintenance","Need 4 hours of sudo access on staging host to upgrade Linux kernel.",ACCESS_MANAGEMENT
+"Salesforce license reassignment needed","Need to reassign vacant Salesforce Sales Cloud seat to new account executive.",ACCESS_MANAGEMENT
+"SSO Okta tile missing for HR Workday portal","Workday application does not appear in my corporate Okta dashboard.",ACCESS_MANAGEMENT
+"Access denied to internal Wiki documentation space","Confluence displays You do not have permission to view this page.",ACCESS_MANAGEMENT
+"Requesting read-only access to customer support ticketing database","BI Analyst requires analytical read replica database credentials.",ACCESS_MANAGEMENT
+"MFA push notification not arriving on mobile phone","Duo security prompt times out and does not send push notification to iPhone.",ACCESS_MANAGEMENT
+"Jira project permission scheme misconfigured","Software engineer cannot transition issues in sprint board due to permissions.",ACCESS_MANAGEMENT
+"Tableau server viewer license needed","Business manager requires access to operational dashboard workbooks.",ACCESS_MANAGEMENT
+"LDAP authentication failure on internal Jenkins server","Jenkins login rejects domain password with invalid credentials code 49.",ACCESS_MANAGEMENT
+"Need permission to push Docker images to corporate container registry","Harbor registry denies push command with unauthorized project access.",ACCESS_MANAGEMENT
+"Access request to confidential financial quarterly spreadsheets","Finance controller needs access to Q4 budgeting shared network folder.",ACCESS_MANAGEMENT
+"Outlook not receiving incoming emails","Have not received any new emails in Microsoft Outlook since yesterday afternoon.",EMAIL
+"Cannot send outbound email to external clients","Emails sent to external recipients bounce back with delivery failure 550.",EMAIL
+"Mailbox storage quota exceeded warning","Exchange mailbox has reached 99% capacity and cannot send or receive messages.",EMAIL
+"Distribution list email bounce notification","Sending to all-engineers@techconnect.com returns recipient not found error.",EMAIL
+"Outlook search index not returning recent messages","Searching for client emails in Outlook returns no results or incomplete lists.",EMAIL
+"Shared department mailbox missing in Outlook sidebar","Support team shared mailbox disappeared from Outlook desktop client.",EMAIL
+"Spam filter falsely quarantining customer emails","Legitimate vendor purchase orders are being held in Office 365 quarantine.",EMAIL
+"Email calendar invites not syncing with smartphone","Meeting calendar appointments accepted in Outlook do not appear on phone.",EMAIL
+"Email signature template formatting corrupted","Corporate HTML email signature displays broken image icons and misaligned text.",EMAIL
+"Unable to configure email account on mobile device","iOS mail app rejects IMAP and Exchange ActiveSync server settings.",EMAIL
+"Out of Office auto reply not sending to external senders","Automatic out of office replies are only going to internal colleagues.",EMAIL
+"Outlook archive PST file corrupted","Outlook displays error: The file is not a personal folders file when opening PST.",EMAIL
+"Delayed email delivery across company","Emails are taking up to 45 minutes to arrive between internal coworkers.",EMAIL
+"Meeting room booking rejected by exchange resource mailbox","Room reservation email is automatically declined due to calendar conflict.",EMAIL
+"Email attachment size limit exceeded","Cannot email a 45MB architectural diagram PDF to client due to gateway limit.",EMAIL
+"Phishing report button missing in Outlook ribbon","The Report Phishing security add-in disappeared from Microsoft Outlook.",EMAIL
+"Delegated calendar access permission error","Executive assistant cannot edit calendar entries on CEO Outlook schedule.",EMAIL
+"Sent email stuck in Outbox folder","Email with attachment remains in Outbox folder and will not transmit.",EMAIL
+"DKIM and SPF verification failing on marketing newsletter","Marketing domain emails going to client spam due to missing DKIM record.",EMAIL
+"Encrypted email message cannot be decrypted in webmail","Recipient receives message with rpmsg attachment that cannot be opened.",EMAIL
+"Cannot connect to corporate Cisco AnyConnect VPN","VPN client fails to establish secure tunnel with server certificate error.",VPN
+"VPN connection drops every few minutes when remote","Pulse Secure VPN connects briefly then disconnects with session timeout.",VPN
+"FortiClient VPN error: Unable to logon to the server","Fortinet VPN client reports credential check failed or gateway unreachable.",VPN
+"Cannot access internal websites while connected to VPN","When VPN is active, web browser cannot open intranet or internal wikis.",VPN
+"Split tunneling not working on home Wi-Fi","All internet traffic is routed through company VPN slowing down video calls.",VPN
+"VPN client throwing virtual adapter installation error","Windows TAP virtual network adapter failed to install or driver is corrupted.",VPN
+"GlobalProtect VPN gateway authentication failed","Palo Alto GlobalProtect reports gateway could not be contacted or resolved.",VPN
+"VPN session terminated: Maximum connection duration reached","VPN disconnects every 2 hours during long software deployment scripts.",VPN
+"Cannot reach office database server through VPN tunnel","PostgreSQL server on 10.0.4.15 is unreachable despite VPN being active.",VPN
+"VPN client crashes upon clicking connect button","AnyConnect desktop application crashes immediately when attempting connection.",VPN
+"Remote desktop RDP fails over VPN connection","Remote Desktop connection times out when trying to connect to office desktop.",VPN
+"VPN IP address conflict with local home subnet","Home router uses 192.168.1.1 which overlaps with company VPN route table.",VPN
+"WireGuard VPN tunnel handshake failed","WireGuard client status remains on handshake waiting and transmits zero bytes.",VPN
+"OpenVPN connection refused on port 1194","OpenVPN client log shows TLS key negotiation failed to occur within 60 seconds.",VPN
+"VPN connection blocked by hotel Wi-Fi firewall","Hotel internet blocks IPsec and GRE protocols, cannot connect to office.",VPN
+"Two-factor authentication code rejected by VPN gateway","Entering correct 6-digit OTP code results in VPN authentication rejection.",VPN
+"VPN client update required to establish connection","VPN pop-up insists on mandatory software upgrade before allowing tunnel.",VPN
+"DNS leak detected while on corporate VPN","DNS requests are bypassing VPN tunnel and resolving via local ISP DNS.",VPN
+"VPN speed throttled to less than 1 megabit","Connecting to VPN reduces broadband download speed from 200Mbps to 1Mbps.",VPN
+"Cannot map corporate drive Z over VPN tunnel","Net use Z: command returns System error 53 The network path was not found.",VPN
+"General IT inquiry regarding workstation refresh policy","When is my hardware lifecycle eligible for a replacement laptop?",OTHER
+"Request for advice on ergonomic office chair settings","Need guidance on proper lumbar and armrest adjustments for desk chair.",OTHER
+"Lost employee ID badge in cafeteria","Misplaced physical building access card and need temporary visitor badge.",OTHER
+"Question regarding clean desk policy and paper shredding","Where is the secure locked shredding console located on the 4th floor?",OTHER
+"Office temperature too cold in engineering section","HVAC air conditioning in zone 3 is blowing freezing cold air continuously.",OTHER
+"Request for dual monitor desk mount installation","Need facilities help to clamp a heavy monitor arm to motorized standing desk.",OTHER
+"Conference room whiteboard markers dried out","All dry erase markers in meeting room 204 are empty and need replacement.",OTHER
+"Coffee machine error in 2nd floor pantry","Espresso machine in employee breakroom displays error water pressure low.",OTHER
+"Recycling bin request for cardboard boxes","Need an extra paper recycling container in the product design team area.",OTHER
+"Inquiry on corporate travel power adapters","Does IT loan international travel plug adapters for UK business trip?",OTHER
+"Noise level complaint in quiet focus room","Colleagues taking speakerphone calls in designated silent library room.",OTHER
+"Request for standing desk anti-fatigue floor mat","Need an ergonomic cushioned mat for working at standing desk workstation.",OTHER
+"Office lighting fixture buzzing loudly","Ceiling fluorescent light bulb above desk 14 is buzzing and flickering.",OTHER
+"Cabinet storage key misplaced","Cannot locate key to lockable pedestal drawers underneath desk 38.",OTHER
+"Visitor parking permit application inquiry","How do I request a visitor parking pass for an external client visiting tomorrow?",OTHER
+"Company merchandise order pickup question","Where do employees collect tech connect fleece jackets ordered from company store?",OTHER
+"First aid kit restock in engineering wing","Bandages and antiseptic wipes are missing from the emergency wall kit.",OTHER
+"Lost wireless earbuds in auditorium","Black earbud charging case left on seat during yesterday all-hands meeting.",OTHER
+"Request for moving assistance between desk pods","Relocating to marketing department next Monday, need assistance moving monitors.",OTHER
+"General feedback regarding IT support ticketing portal","Submitting suggestions to improve dark mode contrast in TechConnect UI.",OTHER

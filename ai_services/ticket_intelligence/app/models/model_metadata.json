@@ -1,0 +1,89 @@
+{
+  "model_name": "TF-IDF + LogisticRegression Category Classifier",
+  "model_version": "ticket-intelligence-v1",
+  "algorithm": "TfidfVectorizer + LogisticRegression",
+  "trained_at": "2026-10-02T04:50:52.029619",
+  "dataset_size": 160,
+  "train_samples": 128,
+  "test_samples": 32,
+  "classes": [
+    "ACCESS_MANAGEMENT",
+    "EMAIL",
+    "HARDWARE",
+    "NETWORK",
+    "OTHER",
+    "SECURITY",
+    "SOFTWARE",
+    "VPN"
+  ],
+  "metrics": {
+    "accuracy": 0.5625,
+    "precision_weighted": 0.5506,
+    "recall_weighted": 0.5625,
+    "f1_weighted": 0.5433,
+    "detailed_report": {
+      "ACCESS_MANAGEMENT": {
+        "precision": 0.75,
+        "recall": 0.75,
+        "f1-score": 0.75,
+        "support": 4.0
+      },
+      "EMAIL": {
+        "precision": 0.75,
+        "recall": 0.75,
+        "f1-score": 0.75,
+        "support": 4.0
+      },
+      "HARDWARE": {
+        "precision": 0.3333333333333333,
+        "recall": 0.25,
+        "f1-score": 0.28571428571428575,
+        "support": 4.0
+      },
+      "NETWORK": {
+        "precision": 0.5714285714285714,
+        "recall": 1.0,
+        "f1-score": 0.7272727272727273,
+        "support": 4.0
+      },
+      "OTHER": {
+        "precision": 0.5,
+        "recall": 0.5,
+        "f1-score": 0.5,
+        "support": 4.0
+      },
+      "SECURITY": {
+        "precision": 0.25,
+        "recall": 0.25,
+        "f1-score": 0.25,
+        "support": 4.0
+      },
+      "SOFTWARE": {
+        "precision": 0.5,
+        "recall": 0.25,
+        "f1-score": 0.3333333333333333,
+        "support": 4.0
+      },
+      "VPN": {
+        "precision": 0.75,
+        "recall": 0.75,
+        "f1-score": 0.75,
+        "support": 4.0
+      },
+      "accuracy": 0.5625,
+      "macro avg": {
+        "precision": 0.5505952380952381,
+        "recall": 0.5625,
+        "f1-score": 0.5432900432900433,
+        "support": 32.0
+      },
+      "weighted avg": {
+        "precision": 0.5505952380952381,
+        "recall": 0.5625,
+        "f1-score": 0.5432900432900433,
+        "support": 32.0
+      }
+    }
+  },
+  "limitations": "Demonstration baseline trained on curated TechConnect ITSM incident samples."
+}

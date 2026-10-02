@@ -27,4 +27,25 @@ com.techconnect/
 ## 3. Communication Patterns
 - **Frontend <-> Backend**: HTTPS REST calls using JSON with Bearer JWT tokens.
 - **Backend <-> PostgreSQL**: JDBC connection pooling via HikariCP + Spring Data JPA / Hibernate.
-- **Backend <-> AI Service**: Internal REST client calls for automated ticket triage and RAG recommendations.
+- **Backend <-> AI Service**: Internal synchronous HTTP calls via Spring's `RestClient` (`POST /api/v1/ticket-intelligence/analyze`) with configured timeouts and graceful fallback when unavailable.
+
+## 4. AI Ticket Intelligence Microservice (Phase 9)
+```
+React Frontend (Analyze Button)
+       |
+       | REST + Bearer JWT
+       v
+Spring Boot TicketController (POST /api/tickets/analyze)
+       |
+       | RestClient (timeout 3000ms)
+       v
+Python FastAPI Microservice (POST /api/v1/ticket-intelligence/analyze)
+       |
+       +---> TF-IDF + LogisticRegression Classifier (Category Prediction)
+       +---> Deterministic Rules Engine (Priority Urgency Inference)
+       +---> Organizational Team Routing Matrix (Suggested Support Team)
+       +---> Deterministic Summarizer (ITSM Incident Summary)
+```
+- **Predictive Assistance Only**: Human requester and engineer decisions remain strictly authoritative.
+- **Circuit Fallback**: Failure of the AI microservice returns `aiAvailable: false` without impeding standard ticket creation.
+

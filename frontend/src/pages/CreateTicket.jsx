@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import ticketService from '../services/ticketService';
 import { extractErrorMessage } from '../services/api';
 import ErrorAlert from '../components/ErrorAlert';
+import AiTicketAnalysisCard from '../components/AiTicketAnalysisCard';
 
 const CATEGORIES = [
   { value: 'HARDWARE', label: 'Hardware (Laptops, Monitors, Peripherals)' },
@@ -16,9 +17,9 @@ const CATEGORIES = [
 ];
 
 const PRIORITIES = [
-  { value: 'LOW', label: 'Low — General questions, non-urgent minor requests (72h SLA)' },
-  { value: 'MEDIUM', label: 'Medium — Normal operational inquiry or software glitch (48h SLA)' },
-  { value: 'HIGH', label: 'High — Significant impairment of work productivity (24h SLA)' },
+  { value: 'LOW', label: 'Low — General questions, non-urgent minor requests (24h SLA)' },
+  { value: 'MEDIUM', label: 'Medium — Normal operational inquiry or software glitch (8h SLA)' },
+  { value: 'HIGH', label: 'High — Significant impairment of work productivity (4h SLA)' },
   { value: 'CRITICAL', label: 'Critical — Complete outage affecting operations (2h SLA)' },
 ];
 
@@ -33,11 +34,45 @@ const CreateTicket = () => {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
   const [error, setError] = useState(null);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAnalyzeWithAi = async () => {
+    const { title, description } = formData;
+    if (!title.trim() || title.trim().length < 3) {
+      setError('Please provide a ticket title (at least 3 characters) before analyzing with AI.');
+      return;
+    }
+    if (!description.trim() || description.trim().length < 5) {
+      setError('Please provide a description (at least 5 characters) before analyzing with AI.');
+      return;
+    }
+
+    try {
+      setAnalyzing(true);
+      setError(null);
+      const result = await ticketService.analyzeTicket({
+        title: title.trim(),
+        description: description.trim(),
+        category: formData.category,
+        priority: formData.priority,
+      });
+      setAiAnalysis(result);
+    } catch (err) {
+      // Graceful local fallback if network/API fails
+      setAiAnalysis({
+        aiAvailable: false,
+        message: extractErrorMessage(err) || 'Unable to connect to AI ticket intelligence service.',
+      });
+    } finally {
+      setAnalyzing(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -126,8 +161,70 @@ const CreateTicket = () => {
               </div>
             </div>
 
-            {/* Category & Priority Grid */}
-            <div className="row g-3 mb-3">
+            {/* Detailed Description */}
+            <div className="mb-3">
+              <label htmlFor="ticketDescription" className="form-label fw-semibold text-slate-700">
+                Detailed Description <span className="text-danger">*</span>
+              </label>
+              <textarea
+                id="ticketDescription"
+                name="description"
+                rows="5"
+                className="form-control"
+                placeholder="Please describe the issue, symptoms, error codes, and steps to reproduce..."
+                value={formData.description}
+                onChange={handleChange}
+                required
+              ></textarea>
+              <div className="form-text small">
+                Include any error messages, device identifiers, or troubleshooting steps already attempted.
+              </div>
+            </div>
+
+            {/* AI Ticket Intelligence Section */}
+            <div className="mb-4">
+              <div className="d-flex justify-content-between align-items-center mb-2">
+                <span className="text-muted small">
+                  <i className="bi bi-stars text-primary me-1"></i>
+                  Need help classifying category, priority, or team?
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 shadow-sm"
+                  onClick={handleAnalyzeWithAi}
+                  disabled={analyzing || !formData.title.trim() || !formData.description.trim()}
+                  title="Analyze ticket text using supervised ML and operational rules"
+                  aria-label="Analyze ticket with AI"
+                >
+                  {analyzing ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status"></span>
+                      <span>Analyzing with AI...</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-robot"></i>
+                      <span>Analyze with AI</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* AI Analysis Display Card */}
+              <AiTicketAnalysisCard
+                analysis={aiAnalysis}
+                loading={analyzing}
+                onApplyCategory={(cat) => setFormData((prev) => ({ ...prev, category: cat }))}
+                onApplyPriority={(prio) => setFormData((prev) => ({ ...prev, priority: prio }))}
+                onApplyAll={({ category, priority }) =>
+                  setFormData((prev) => ({ ...prev, category, priority }))
+                }
+                onDismiss={() => setAiAnalysis(null)}
+              />
+            </div>
+
+            {/* Category & Priority Grid (Human-Entered Values Remain Authoritative) */}
+            <div className="row g-3 mb-4">
               <div className="col-12 col-md-6">
                 <label htmlFor="ticketCategory" className="form-label fw-semibold text-slate-700">
                   Category <span className="text-danger">*</span>
@@ -146,6 +243,9 @@ const CreateTicket = () => {
                     </option>
                   ))}
                 </select>
+                <div className="form-text small">
+                  Authoritative ticket domain classification.
+                </div>
               </div>
 
               <div className="col-12 col-md-6">
@@ -166,26 +266,9 @@ const CreateTicket = () => {
                     </option>
                   ))}
                 </select>
-              </div>
-            </div>
-
-            {/* Detailed Description */}
-            <div className="mb-4">
-              <label htmlFor="ticketDescription" className="form-label fw-semibold text-slate-700">
-                Detailed Description <span className="text-danger">*</span>
-              </label>
-              <textarea
-                id="ticketDescription"
-                name="description"
-                rows="6"
-                className="form-control"
-                placeholder="Please describe the issue, symptoms, error codes, and steps to reproduce..."
-                value={formData.description}
-                onChange={handleChange}
-                required
-              ></textarea>
-              <div className="form-text small">
-                Include any error messages, device identifiers, or troubleshooting steps already attempted.
+                <div className="form-text small">
+                  Determines SLA response and turnaround commitments.
+                </div>
               </div>
             </div>
 

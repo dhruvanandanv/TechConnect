@@ -107,12 +107,26 @@ TechConnect/
 - **Phase 6 – SLA Management & Automation Engine**: COMPLETE
 - **Phase 7 – React Frontend & Dashboard**: COMPLETE
 - **Phase 8 – Full-Stack Integration Hardening & API Reliability**: COMPLETE
+- **Phase 9 – AI-Powered Ticket Intelligence Service**: COMPLETE
 
 ---
 
 ## Running Locally
 
-### 1. Spring Boot Backend
+### 1. Python AI Ticket Intelligence Service
+```bash
+cd ai_services/ticket_intelligence
+# Install dependencies
+pip install -r requirements.txt
+
+# Run ML test suite
+pytest -v
+
+# Start FastAPI service on http://localhost:8000
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 2. Spring Boot Backend
 ```bash
 cd backend
 # Run test suite
@@ -122,7 +136,7 @@ cd backend
 ./mvnw.cmd spring-boot:run
 ```
 
-### 2. React Frontend
+### 3. React Frontend
 ```bash
 cd frontend
 # Install dependencies
@@ -138,6 +152,7 @@ npm run build
 ---
 
 ## Documentation
+- **AI Ticket Intelligence Architecture**: Model training, TF-IDF vectorization, priority inference, team routing, and fallback mechanisms are documented in [docs/ai-ticket-intelligence.md](docs/ai-ticket-intelligence.md).
 - **Full-Stack Integration & Architecture**: Detailed full-stack architecture, API reliability, JWT lifecycle, error handling, CORS, and IDOR matrix are documented in [docs/integration.md](docs/integration.md).
 - **Backend API Reference**: REST API contracts and error payloads are documented in [docs/api.md](docs/api.md).
 - **Frontend Architecture**: Component layout, routing, role guards, and client state are documented in [docs/frontend.md](docs/frontend.md).

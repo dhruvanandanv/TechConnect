@@ -28,6 +28,19 @@ export const ticketService = {
   },
 
   /**
+   * Requests automated AI ticket intelligence analysis (category, priority, team, summary, reasons).
+   */
+  async analyzeTicket({ title, description, category, priority }) {
+    const response = await api.post('/tickets/analyze', {
+      title,
+      description,
+      category,
+      priority,
+    });
+    return response.data;
+  },
+
+  /**
    * Submits a new IT service ticket.
    */
   async createTicket(ticketData) {

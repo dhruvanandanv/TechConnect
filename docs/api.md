@@ -355,6 +355,58 @@ Arbitrary jumps (e.g. `OPEN` ➔ `CLOSED`) are strictly rejected with `400 Bad R
 
 ### 4.3 Endpoints Reference
 
+#### `POST /api/tickets/analyze`
+- **Description**: Requests automated AI ticket intelligence analysis for category classification, operational priority assessment, suggested support team routing, and normalized ITSM summary.
+- **Authentication**: Bearer JWT (`ROLE_EMPLOYEE`, `ROLE_ENGINEER`, `ROLE_MANAGER`, `ROLE_ADMIN`)
+- **Validation**:
+  - `title`: Required, 3–255 characters.
+  - `description`: Required, 5–5000 characters.
+  - `category`: Optional (defaults to automated ML prediction).
+  - `priority`: Optional (defaults to automated rules-based prediction).
+- **Request Body**:
+  ```json
+  {
+    "title": "VPN is not connecting",
+    "description": "I am unable to connect to the company VPN from my laptop",
+    "category": null,
+    "priority": null
+  }
+  ```
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "aiAvailable": true,
+    "message": "AI analysis completed successfully",
+    "category": {
+      "value": "VPN",
+      "confidence": 0.92
+    },
+    "priority": {
+      "value": "HIGH",
+      "confidence": 0.88
+    },
+    "suggested_team": {
+      "value": "NETWORK_SUPPORT",
+      "confidence": 0.85
+    },
+    "summary": "VPN is not connecting: User is unable to connect to the company VPN from the assigned workstation.",
+    "reasons": [
+      "Category VPN predicted from salient terminology: vpn",
+      "High-impact operational keywords identified: vpn",
+      "Routed to Network Support for secure remote tunnels and gateway firewalls"
+    ],
+    "model_version": "ticket-intelligence-v1",
+    "processing_time_ms": 18
+  }
+  ```
+- **Fallback Response (`200 OK`)** (when AI service is unreachable/offline):
+  ```json
+  {
+    "aiAvailable": false,
+    "message": "AI analysis service is unreachable or timed out"
+  }
+  ```
+
 #### `POST /api/tickets`
 - **Description**: Creates a new service ticket. Requester is automatically resolved from the authenticated JWT `SecurityContext`. Initial status is always `OPEN`.
 - **Authentication**: Bearer JWT (`ROLE_EMPLOYEE`, `ROLE_ENGINEER`, `ROLE_MANAGER`, `ROLE_ADMIN`)

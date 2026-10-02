@@ -237,14 +237,28 @@ cd e:\TECHCONNECT\backend
 .\mvnw.cmd spring-boot:run
 ```
 
-### 2. Start Frontend:
+### 1. Start Python AI Ticket Intelligence Service:
+```powershell
+cd e:\TECHCONNECT\ai_services\ticket_intelligence
+pytest -v
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 2. Start Backend:
+```powershell
+cd e:\TECHCONNECT\backend
+.\mvnw.cmd clean test
+.\mvnw.cmd spring-boot:run
+```
+
+### 3. Start Frontend:
 ```powershell
 cd e:\TECHCONNECT\frontend
 npm run build
 npm run dev
 ```
 
-### 3. Demo Accounts:
+### 4. Demo Accounts:
 When running with development user seeding enabled (`TECHCONNECT_SEED_DEV_USERS=true`), the following test accounts are available:
 - **Employee**: `employee@techconnect.com`
 - **Engineer**: `engineer@techconnect.com`
@@ -253,20 +267,41 @@ When running with development user seeding enabled (`TECHCONNECT_SEED_DEV_USERS=
 
 ---
 
-## 10. Common Troubleshooting & Error Resolution
+## 10. AI Ticket Intelligence Integration (Phase 9)
+
+```
+React (CreateTicket.jsx) 
+   ──[POST /api/tickets/analyze]──> Spring Boot (TicketController)
+                                       ──[RestClient (3000ms)]──> Python FastAPI (:8000)
+                                                                     ├── TF-IDF + LogisticRegression
+                                                                     ├── Priority Rules Engine
+                                                                     └── Team Routing Matrix
+```
+- **Assisting, Non-Authoritative**: AI suggestions are recommendations; human selections remain authoritative.
+- **Fail-Open Architecture**: Unavailability of the AI microservice does not block ticket creation.
+
+---
+
+## 11. Common Troubleshooting & Error Resolution
 
 1. **"Unable to connect to TechConnect server"**:
    - Check if Spring Boot is running on port 8080.
    - Verify `VITE_API_BASE_URL` in `frontend/.env` points to `http://localhost:8080/api`.
-2. **"Access is denied: insufficient role privileges" (403)**:
+2. **"AI analysis is currently unavailable"**:
+   - Verify the Python FastAPI microservice is running on `http://localhost:8000`.
+   - Check `GET http://localhost:8000/health`.
+   - Standard ticket creation is unaffected and continues normally.
+3. **"Access is denied: insufficient role privileges" (403)**:
    - Check that the logged-in user possesses the required role authority for the resource or ticket.
-3. **"Invalid ticket status transition" (400)**:
+4. **"Invalid ticket status transition" (400)**:
    - State transition rules prohibit arbitrary skipping. Tickets must transition sequentially (e.g. `OPEN -> ASSIGNED -> IN_PROGRESS -> RESOLVED -> CLOSED`).
-4. **"Your session has expired. Please log in again" (401)**:
+5. **"Your session has expired. Please log in again" (401)**:
    - Token has exceeded its 1-hour validity window. Log in again to obtain a fresh JWT.
 
 ---
 
-## 11. Known Limitations (Pre-Phase 9)
+## 12. Known Limitations (Post-Phase 9)
 - **Token Refresh**: Silent refresh token rotation is not yet implemented; users must re-authenticate upon token expiration.
-- **WebSocket Push**: Ticket updates and SLA status refresh via HTTP refetching rather than real-time WebSockets (targeted for Phase 10 Notification Engine).
+- **WebSocket Push**: Ticket updates and SLA status refresh via HTTP refetching rather than real-time WebSockets.
+- **RAG & GenAI Copilot**: Knowledge base vector embeddings and LLM copilot are targeted for subsequent AI enhancements.
+

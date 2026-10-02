@@ -26,6 +26,16 @@ import java.util.List;
 public class TicketController {
 
     private final TicketService ticketService;
+    private final com.techconnect.service.AiTicketIntelligenceService aiTicketIntelligenceService;
+
+    @PostMapping("/analyze")
+    public ResponseEntity<AiAnalysisResponse> analyzeTicket(
+            @Valid @RequestBody AiAnalysisRequest request,
+            Authentication authentication) {
+        log.info("Received ticket AI analysis request by user '{}'", authentication.getName());
+        AiAnalysisResponse response = aiTicketIntelligenceService.analyzeTicket(request);
+        return ResponseEntity.ok(response);
+    }
 
     @PostMapping
     public ResponseEntity<TicketResponse> createTicket(
