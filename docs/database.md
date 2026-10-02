@@ -253,4 +253,64 @@ The Ticket Management system ties together employees, IT staff, organization str
     - The ticket references this policy to record the agreed first response time, resolution time, and warning threshold.
     - Foreign key: `tickets.sla_id` -> `sla_rules.id`.
 
+---
+
+## 5. MongoDB Knowledge Base Schema Specification (Phase 10)
+
+Database: `techconnect_knowledge`
+
+### 5.1 Collection: `knowledge_articles`
+Stores structured troubleshooting documentation, SOPs, and knowledge articles.
+
+| Field | BSON Type | Index | Description |
+|---|---|---|---|
+| `_id` | ObjectId / String | Primary Key | Unique document identifier |
+| `title` | String | Text, Single | Article title |
+| `slug` | String | Unique Single | URL-friendly unique slug |
+| `summary` | String | Text | High-level problem overview |
+| `problem` | String | Text | Observed symptoms, error codes |
+| `cause` | String | Text | Root technical cause / diagnostic |
+| `resolution` | String | Text | Step-by-step troubleshooting actions |
+| `content` | String | None | Synthesized or custom Markdown body |
+| `category` | String (Enum) | Single | `TicketCategory` vocabulary |
+| `tags` | Array of String | Multikey, Text | Normalized lowercase keyword tags |
+| `status` | String (Enum) | Single | `DRAFT`, `PUBLISHED`, `ARCHIVED` |
+| `author_id` | Int64 | Single | Reference to PostgreSQL `users.id` |
+| `author_name` | String | None | Cached author display name |
+| `author_email` | String | None | Cached author email |
+| `version` | Int32 | None | Incremental revision counter (v1, v2...) |
+| `view_count` | Int64 | None | Atomic counter of article reads |
+| `helpful_count` | Int64 | None | Helpful feedback counter |
+| `not_helpful_count` | Int64 | None | Not helpful feedback counter |
+| `feedback_user_ids` | Array of Int64 | Single | Set of user IDs who have submitted feedback |
+| `source_type` | String | None | `MANUAL` or `TICKET` |
+| `source_ticket_id` | Int64 | Single | Optional reference to PostgreSQL `tickets.id` |
+| `created_at` | Date | None | Document creation timestamp |
+| `updated_at` | Date | Single | Last modification timestamp |
+| `published_at` | Date | None | Date published to enterprise catalog |
+| `archived_at` | Date | None | Date retired from public catalog |
+| `normalized_text` | String | None | Pre-synthesized plain text for future RAG |
+| `embedding_status` | String | None | Dormant placeholder for Phase 11 (`PENDING`) |
+
+### 5.2 Collection: `knowledge_article_history`
+Maintains an immutable audit log of revisions and lifecycle transitions.
+
+| Field | BSON Type | Index | Description |
+|---|---|---|---|
+| `_id` | ObjectId / String | Primary Key | Unique audit entry identifier |
+| `article_id` | String | Single | Reference to `knowledge_articles._id` |
+| `action` | String (Enum) | None | `CREATED`, `UPDATED`, `PUBLISHED`, `ARCHIVED`, `RESTORED`, `REVERTED_TO_DRAFT` |
+| `performed_by_id` | Int64 | None | User ID who initiated action |
+| `performed_by_name` | String | None | User display name |
+| `performed_by_email` | String | None | User email |
+| `performed_at` | Date | None | Timestamp of the event |
+| `version` | Int32 | None | Article version at time of event |
+| `details` | String | None | Contextual description of modification |
+
+### 5.3 Cross-Database Referencing Strategy
+- **No Foreign Key Constraints**: PostgreSQL and MongoDB operate as independent database engines. Foreign key constraints across database boundaries do not exist.
+- **Application-Enforced Integrity**: Spring Boot services validate `author_id` against PostgreSQL `UserRepository` and verify role permissions prior to mutating MongoDB documents.
+- **Eventual Consistency**: If a user is deactivated or renamed in PostgreSQL, article authorship preserves historical fidelity without relational cascade failures.
+
+
 

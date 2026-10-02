@@ -282,7 +282,28 @@ React (CreateTicket.jsx)
 
 ---
 
-## 11. Common Troubleshooting & Error Resolution
+## 11. Knowledge Base Management Integration (Phase 10)
+
+```
+React (KnowledgeBase / Viewer / Editor)
+   ──[REST /api/knowledge/**]──> Spring Boot (KnowledgeArticleController)
+                                     ├── Spring Security JWT & RBAC Matrix
+                                     ├── KnowledgeArticleService (Slug, Validation, History)
+                                     └── Spring Data MongoDB / MongoTemplate
+                                           └── MongoDB (:27017, techconnect_knowledge)
+                                                 ├── knowledge_articles
+                                                 └── knowledge_article_history
+```
+
+### Security & Access Boundaries:
+- **No Direct MongoDB Exposure**: The browser client connects exclusively to authenticated Spring Boot REST endpoints. Direct MongoDB connections from frontend are strictly prohibited.
+- **Employee Isolation**: Employees can only retrieve articles with `status: "PUBLISHED"`. Unpublished drafts, archived guides, and revision history are inaccessible and return `403 Forbidden`.
+- **Engineer Ownership**: Engineers are restricted to modifying, publishing, and archiving articles they personally authored. Tampering with other engineers' articles is rejected with `403 Forbidden`.
+- **Atomic Operations**: Article views and helpful/not helpful votes execute atomic `$inc` operations in MongoDB, completely avoiding read-modify-write lost updates under concurrency.
+
+---
+
+## 12. Common Troubleshooting & Error Resolution
 
 1. **"Unable to connect to TechConnect server"**:
    - Check if Spring Boot is running on port 8080.
@@ -293,15 +314,19 @@ React (CreateTicket.jsx)
    - Standard ticket creation is unaffected and continues normally.
 3. **"Access is denied: insufficient role privileges" (403)**:
    - Check that the logged-in user possesses the required role authority for the resource or ticket.
-4. **"Invalid ticket status transition" (400)**:
-   - State transition rules prohibit arbitrary skipping. Tickets must transition sequentially (e.g. `OPEN -> ASSIGNED -> IN_PROGRESS -> RESOLVED -> CLOSED`).
+4. **"Invalid ticket status transition" or "Invalid knowledge article state transition" (400)**:
+   - State transition rules prohibit arbitrary skipping. Review permitted lifecycle state transitions.
 5. **"Your session has expired. Please log in again" (401)**:
    - Token has exceeded its 1-hour validity window. Log in again to obtain a fresh JWT.
+6. **"MongoDB connection timeout" (500)**:
+   - Verify local MongoDB service is running on port 27017 (`net start MongoDB` on Windows or `docker compose up -d mongodb`).
 
 ---
 
-## 12. Known Limitations (Post-Phase 9)
+## 13. Known Limitations (Post-Phase 10)
+- **Keyword Search Only**: Search relies on MongoDB text and regex pattern matching. Semantic vector embeddings and neural similarity search belong to Phase 11+.
+- **RAG & GenAI Copilot**: Knowledge articles maintain clean normalized text structures, but retrieval-augmented generation and LLM copilot are targeted for subsequent phases.
 - **Token Refresh**: Silent refresh token rotation is not yet implemented; users must re-authenticate upon token expiration.
 - **WebSocket Push**: Ticket updates and SLA status refresh via HTTP refetching rather than real-time WebSockets.
-- **RAG & GenAI Copilot**: Knowledge base vector embeddings and LLM copilot are targeted for subsequent AI enhancements.
+
 

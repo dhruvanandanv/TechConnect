@@ -72,6 +72,28 @@ const Sidebar = ({ isOpen, onCloseMobile }) => {
           </>
         )}
 
+        <div className="tc-nav-section-title mt-3">Knowledge & SOPs</div>
+
+        <NavLink
+          to="/knowledge"
+          className={({ isActive }) => `tc-nav-link ${isActive ? 'active' : ''}`}
+          onClick={onCloseMobile}
+        >
+          <i className="bi bi-journal-bookmark"></i>
+          <span>Knowledge Base</span>
+        </NavLink>
+
+        {(isEngineer || isManagerOrAdmin) && (
+          <NavLink
+            to="/knowledge/articles/new"
+            className={({ isActive }) => `tc-nav-link ${isActive ? 'active' : ''}`}
+            onClick={onCloseMobile}
+          >
+            <i className="bi bi-pencil-square"></i>
+            <span>New Article</span>
+          </NavLink>
+        )}
+
         <div className="tc-nav-section-title mt-3">User Account</div>
 
         <NavLink

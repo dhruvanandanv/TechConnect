@@ -729,6 +729,161 @@ Service Level Agreements (SLAs) enforce operational milestones for IT incident r
     "resolutionSlaBreached": 5
   }
   ```
+
+---
+
+### 3.7 Knowledge Base Management (Phase 10)
+
+#### `GET /api/knowledge/articles`
+- **Description**: Returns paginated knowledge article summaries. Employees only receive `PUBLISHED` articles. Staff may filter by status (`DRAFT`, `PUBLISHED`, `ARCHIVED`), category, or tag.
+- **Authentication**: Bearer JWT (`ROLE_EMPLOYEE`, `ROLE_ENGINEER`, `ROLE_MANAGER`, `ROLE_ADMIN`)
+- **Query Parameters**:
+  - `category` (optional): `HARDWARE`, `SOFTWARE`, `NETWORK`, `SECURITY`, `ACCESS_MANAGEMENT`, `EMAIL`, `VPN`, `OTHER`
+  - `status` (optional, staff only): `DRAFT`, `PUBLISHED`, `ARCHIVED`
+  - `tag` (optional): tag string (e.g. `cisco`)
+  - `page` (optional, default: `0`)
+  - `size` (optional, default: `10`)
+  - `sort` (optional, default: `updated_at,desc`)
+- **Response (`200 OK`)**: Standard Spring Data `Page<KnowledgeArticleSummaryResponse>`
+
+---
+
+#### `GET /api/knowledge/articles/{id}`
+- **Description**: Retrieves full structured troubleshooting details for an article. If published, automatically increments `viewCount` atomically.
+- **Authentication**: Bearer JWT
+- **Permissions**:
+  - `PUBLISHED`: Accessible by all authenticated users.
+  - `DRAFT` or `ARCHIVED`: Accessible by author engineer, departmental managers, and admins only. Employees receive `403 Forbidden`.
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "id": "674e2b10a4f59e001234abcd",
+    "title": "Configuring Corporate VPN via Cisco AnyConnect",
+    "slug": "configuring-corporate-vpn-via-cisco-anyconnect",
+    "summary": "Step-by-step diagnostic guide to establish split-tunnel VPN connections.",
+    "problem": "Users encounter Gateway Timeout 504 when connecting remotely.",
+    "cause": "DNS cache corruption or outdated client XML profile.",
+    "resolution": "1. Flush DNS using ipconfig /flushdns.\n2. Update AnyConnect profile to v3.4.",
+    "content": "### Problem & Symptoms\n\nUsers encounter...",
+    "category": "VPN",
+    "tags": ["vpn", "cisco", "network"],
+    "status": "PUBLISHED",
+    "authorId": 2,
+    "authorName": "Alex Engineer",
+    "authorEmail": "engineer@techconnect.com",
+    "version": 2,
+    "viewCount": 49,
+    "helpfulCount": 12,
+    "notHelpfulCount": 1,
+    "userHasVoted": false,
+    "sourceType": "TICKET",
+    "sourceTicketId": 104,
+    "createdAt": "2026-10-02T10:15:00",
+    "updatedAt": "2026-10-02T10:45:00",
+    "publishedAt": "2026-10-02T10:20:00",
+    "archivedAt": null
+  }
+  ```
+
+---
+
+#### `GET /api/knowledge/search?q={query}`
+- **Description**: Executes multi-field keyword search across title, summary, symptoms, diagnostics, steps, tags, and category. Employees receive only published results.
+- **Authentication**: Bearer JWT
+- **Response (`200 OK`)**:
+  ```json
+  {
+    "query": "cisco vpn",
+    "totalHits": 1,
+    "page": 0,
+    "size": 10,
+    "totalPages": 1,
+    "articles": [ ... ],
+    "searchType": "KEYWORD"
+  }
+  ```
+
+---
+
+#### `POST /api/knowledge/articles`
+- **Description**: Creates a new knowledge article document in MongoDB.
+- **Authentication**: Bearer JWT (`ROLE_ENGINEER`, `ROLE_MANAGER`, `ROLE_ADMIN`)
+- **Request Body**:
+  ```json
+  {
+    "title": "Configuring Corporate VPN via Cisco AnyConnect",
+    "summary": "Step-by-step diagnostic guide to establish split-tunnel VPN connections.",
+    "category": "VPN",
+    "tags": ["vpn", "cisco", "network"],
+    "problem": "Users encounter Gateway Timeout 504 when connecting remotely.",
+    "cause": "DNS cache corruption or outdated client XML profile.",
+    "resolution": "1. Flush DNS using ipconfig /flushdns.\n2. Update AnyConnect profile to v3.4.",
+    "status": "DRAFT",
+    "sourceTicketId": 104
+  }
+  ```
+- **Response (`201 Created`)**: `KnowledgeArticleResponse`
+
+---
+
+#### `PUT /api/knowledge/articles/{id}`
+- **Description**: Updates article fields. Increments `version` if article is `PUBLISHED` and core content has changed.
+- **Authentication**: Bearer JWT (Author Engineer, Manager, Admin)
+- **Response (`200 OK`)**: `KnowledgeArticleResponse`
+
+---
+
+#### `PATCH /api/knowledge/articles/{id}/publish`
+- **Description**: Transitions article from `DRAFT` or `ARCHIVED` to `PUBLISHED`.
+- **Authentication**: Bearer JWT (Author Engineer, Manager, Admin)
+- **Response (`200 OK`)**: `KnowledgeArticleResponse`
+
+---
+
+#### `PATCH /api/knowledge/articles/{id}/archive`
+- **Description**: Transitions article to `ARCHIVED`, hiding it from employee self-service.
+- **Authentication**: Bearer JWT (Author Engineer, Manager, Admin)
+- **Response (`200 OK`)**: `KnowledgeArticleResponse`
+
+---
+
+#### `PATCH /api/knowledge/articles/{id}/draft`
+- **Description**: Reverts or restores an article to `DRAFT` status for major overhaul.
+- **Authentication**: Bearer JWT (Author Engineer, Manager, Admin)
+- **Response (`200 OK`)**: `KnowledgeArticleResponse`
+
+---
+
+#### `POST /api/knowledge/articles/{id}/feedback`
+- **Description**: Records helpful or not helpful vote for a published article. Prevents duplicate votes per user ID.
+- **Authentication**: Bearer JWT (All roles)
+- **Request Body**:
+  ```json
+  {
+    "helpful": true
+  }
+  ```
+- **Response (`200 OK`)**: `KnowledgeArticleResponse`
+
+---
+
+#### `GET /api/knowledge/articles/{id}/history`
+- **Description**: Retrieves immutable audit log of revisions and state transitions for an article.
+- **Authentication**: Bearer JWT (Author Engineer, Manager, Admin)
+- **Response (`200 OK`)**: Array of `KnowledgeArticleHistoryResponse`
+
+---
+
+#### `GET /api/knowledge/categories`
+- **Description**: Lists all standardized IT troubleshooting categories.
+- **Authentication**: Bearer JWT
+
+---
+
+#### `GET /api/knowledge/tags`
+- **Description**: Lists all distinct tags currently associated with published knowledge articles.
+- **Authentication**: Bearer JWT
+
 ---
 
 ## 4. Frontend Client Integration & CORS

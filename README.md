@@ -108,12 +108,22 @@ TechConnect/
 - **Phase 7 – React Frontend & Dashboard**: COMPLETE
 - **Phase 8 – Full-Stack Integration Hardening & API Reliability**: COMPLETE
 - **Phase 9 – AI-Powered Ticket Intelligence Service**: COMPLETE
+- **Phase 10 – Knowledge Base Management System**: COMPLETE
 
 ---
 
 ## Running Locally
 
-### 1. Python AI Ticket Intelligence Service
+### 1. MongoDB & PostgreSQL Services
+```bash
+# Start MongoDB (27017) and PostgreSQL (5432) via Docker Compose
+docker compose up -d
+
+# Or ensure local MongoDB service is running on localhost:27017
+# and PostgreSQL is running on localhost:5432
+```
+
+### 2. Python AI Ticket Intelligence Service
 ```bash
 cd ai_services/ticket_intelligence
 # Install dependencies
@@ -126,17 +136,17 @@ pytest -v
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 2. Spring Boot Backend
+### 3. Spring Boot Backend
 ```bash
 cd backend
-# Run test suite
+# Run test suite (161 unit & integration tests)
 ./mvnw.cmd clean test
 
 # Run application on http://localhost:8080
 ./mvnw.cmd spring-boot:run
 ```
 
-### 3. React Frontend
+### 4. React Frontend
 ```bash
 cd frontend
 # Install dependencies
@@ -152,8 +162,10 @@ npm run build
 ---
 
 ## Documentation
+- **Knowledge Base Management System**: Polyglot persistence, MongoDB document model, RBAC lifecycle state machine, atomic view/feedback metrics, audit history, and future RAG data preparation are documented in [docs/knowledge-base.md](docs/knowledge-base.md).
 - **AI Ticket Intelligence Architecture**: Model training, TF-IDF vectorization, priority inference, team routing, and fallback mechanisms are documented in [docs/ai-ticket-intelligence.md](docs/ai-ticket-intelligence.md).
 - **Full-Stack Integration & Architecture**: Detailed full-stack architecture, API reliability, JWT lifecycle, error handling, CORS, and IDOR matrix are documented in [docs/integration.md](docs/integration.md).
 - **Backend API Reference**: REST API contracts and error payloads are documented in [docs/api.md](docs/api.md).
 - **Frontend Architecture**: Component layout, routing, role guards, and client state are documented in [docs/frontend.md](docs/frontend.md).
+
 

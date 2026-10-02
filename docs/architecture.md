@@ -49,3 +49,27 @@ Python FastAPI Microservice (POST /api/v1/ticket-intelligence/analyze)
 - **Predictive Assistance Only**: Human requester and engineer decisions remain strictly authoritative.
 - **Circuit Fallback**: Failure of the AI microservice returns `aiAvailable: false` without impeding standard ticket creation.
 
+## 5. Knowledge Base Management Architecture (Phase 10)
+```
+React Client (Knowledge Base Portal)
+       |
+       | REST + Bearer JWT
+       v
+Spring Boot KnowledgeArticleController (/api/knowledge/**)
+       |
+       +---> KnowledgeArticleService & Implementation (RBAC & State Machine)
+                |
+                +---> Spring Data MongoDB / MongoTemplate
+                |        |
+                |        v
+                |     MongoDB: techconnect_knowledge
+                |        - knowledge_articles (documents, search, counters)
+                |        - knowledge_article_history (audit revisions)
+                |
+                +---> UserRepository (PostgreSQL user lookup for author & permissions)
+```
+- **Polyglot Persistence**: Clean separation of concerns where PostgreSQL handles transactional ACID ITSM state and MongoDB handles flexible, document-oriented troubleshooting articles.
+- **Pre-computed RAG Structure**: Articles synthesize clean `normalized_text` blocks and record `embedding_status`, preparing seamless ingestion for future Phase 11 vector search without refactoring document schemas.
+- **No Direct Frontend-to-Mongo Access**: The React client communicates strictly via authenticated Spring Boot APIs. MongoDB connection strings and internal collections are never exposed to the browser.
+
+

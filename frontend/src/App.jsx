@@ -15,6 +15,9 @@ import CreateTicket from './pages/CreateTicket';
 import TicketDetails from './pages/TicketDetails';
 import SlaDashboard from './pages/SlaDashboard';
 import Profile from './pages/Profile';
+import KnowledgeBase from './pages/KnowledgeBase';
+import KnowledgeArticleView from './pages/KnowledgeArticleView';
+import KnowledgeArticleEditor from './pages/KnowledgeArticleEditor';
 import NotFound from './pages/NotFound';
 
 import './App.css';
@@ -90,7 +93,26 @@ function App() {
             <Route path="/assigned-tickets" element={<Tickets filterAssignedOnly={true} />} />
             <Route path="/tickets/new" element={<CreateTicket />} />
             <Route path="/tickets/:id" element={<TicketDetails />} />
-            <Route path="/profile" element={<Profile />} />
+            {/* Knowledge Base Management Routes (Phase 10) */}
+            <Route path="/knowledge" element={<KnowledgeBase />} />
+            <Route path="/knowledge/search" element={<KnowledgeBase />} />
+            <Route path="/knowledge/articles/:id" element={<KnowledgeArticleView />} />
+            <Route
+              path="/knowledge/articles/new"
+              element={
+                <RoleGuard allowedRoles={['ROLE_ENGINEER', 'ROLE_MANAGER', 'ROLE_ADMIN']}>
+                  <KnowledgeArticleEditor />
+                </RoleGuard>
+              }
+            />
+            <Route
+              path="/knowledge/articles/:id/edit"
+              element={
+                <RoleGuard allowedRoles={['ROLE_ENGINEER', 'ROLE_MANAGER', 'ROLE_ADMIN']}>
+                  <KnowledgeArticleEditor />
+                </RoleGuard>
+              }
+            />
 
             {/* Manager and Admin SLA Dashboard */}
             <Route

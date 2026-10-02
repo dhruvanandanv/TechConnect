@@ -165,6 +165,49 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    @ExceptionHandler(KnowledgeArticleNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleKnowledgeArticleNotFoundException(
+            KnowledgeArticleNotFoundException ex, HttpServletRequest request) {
+        log.warn("Knowledge article not found: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    }
+
+    @ExceptionHandler(KnowledgeArticleAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleKnowledgeArticleAccessDeniedException(
+            KnowledgeArticleAccessDeniedException ex, HttpServletRequest request) {
+        log.warn("Knowledge article access denied: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(InvalidKnowledgeArticleStateTransitionException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidKnowledgeArticleStateTransitionException(
+            InvalidKnowledgeArticleStateTransitionException ex, HttpServletRequest request) {
+        log.warn("Invalid knowledge article state transition: {}", ex.getMessage());
+        ErrorResponse response = ErrorResponse.builder()
+                .success(false)
+                .message(ex.getMessage())
+                .timestamp(LocalDateTime.now())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleSpringAccessDeniedException(
             org.springframework.security.access.AccessDeniedException ex, HttpServletRequest request) {
