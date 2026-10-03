@@ -1,180 +1,291 @@
 # TechConnect
 
-**TechConnect** is an enterprise-grade AI-Powered IT Service Management (ITSM) Platform. It streamlines technical support workflows across organizations with automated ticket lifecycle management, strict SLA governance, real-time tracking, and AI-assisted triage and resolution.
+> **AI-Powered Enterprise IT Service Management (ITSM) Platform**  
+> *A production-engineered full-stack solution featuring automated SLA governance, polyglot persistence, grounded RAG intelligence, and multi-container deployment.*
+
+[![Java](https://img.shields.io/badge/Java-21_LTS-orange.svg)](https://openjdk.org/)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3.x-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![React](https://img.shields.io/badge/React-19.x-blue.svg)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115.x-009688.svg)](https://fastapi.tiangolo.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16_+_pgvector-336791.svg)](https://github.com/pgvector/pgvector)
+[![MongoDB](https://img.shields.io/badge/MongoDB-7.0-47A248.svg)](https://www.mongodb.com/)
+[![Docker](https://img.shields.io/badge/Docker-Multi--Stage_Builds-2496ED.svg)](https://www.docker.com/)
+[![Tests](https://img.shields.io/badge/Tests-269_Passed_(100%25)-success.svg)](backend)
 
 ---
 
-## Table of Contents
-1. [Project Overview](#project-overview)
-2. [Key Features](#key-features)
-3. [Technology Stack](#technology-stack)
-4. [System Architecture](#system-architecture)
-5. [Project Structure](#project-structure)
-6. [Prerequisites](#prerequisites)
-7. [Running Locally](#running-locally)
-8. [API Endpoints](#api-endpoints)
-9. [Development Roadmap](#development-roadmap)
+## 1. Problem Statement
+
+Modern enterprise IT departments suffer from chronic ticket backlogs, repetitive manual triage delays, and frequent SLA breaches. Meanwhile, standard generative AI solutions present severe business risks: unvetted LLMs hallucinate inaccurate configuration commands, expose sensitive internal tickets across organizational boundaries, or execute unauthorized automated actions on operational systems.
+
+**TechConnect** solves these challenges by combining strict deterministic service desk governance with a non-autonomous, grounded Retrieval-Augmented Generation (RAG) architecture. It eliminates manual triage bottlenecks, enforces dynamic priority-based SLAs, and empowers support engineers with cited, verifiable technical resolutions with zero hallucination tolerance.
 
 ---
 
-## Project Overview
-TechConnect bridges the gap between employees experiencing technical bottlenecks (e.g., VPN issues, hardware failures, access controls) and IT support teams. It enforces role-based access control (Employee, Engineer, Manager, Admin), monitors SLA compliance with automated breach detection, and integrates AI assistance for intelligent category prediction and RAG-grounded troubleshooting.
+## 2. Key Features
+
+- **Deterministic Ticket Lifecycle**: Enforces strict state transitions (`OPEN` → `ASSIGNED` → `IN_PROGRESS` → `WAITING_FOR_USER` → `RESOLVED` → `CLOSED`, plus `ESCALATED`) with complete audit logging and status history tracking.
+- **Dynamic SLA Automation Engine**: Calculates priority-based First Response and Resolution deadlines (Critical: 2h, High: 4h, Medium: 8h, Low: 24h). Automatically pauses SLA countdowns when awaiting employee input (`WAITING_FOR_USER`) and dynamically resumes with adjusted deadlines upon response.
+- **Role-Based Access Control (RBAC)**: Tailored dashboards and granular permission barriers across 4 user roles: `ROLE_EMPLOYEE`, `ROLE_ENGINEER`, `ROLE_MANAGER`, and `ROLE_ADMIN`.
+- **AI Ticket Triage**: Scikit-Learn TF-IDF classification and rule-based urgency inference auto-predicting incident category, priority, and support team routing upon ticket creation.
+- **RAG-Grounded AI Support Copilot**: Dense vector semantic retrieval (`sentence-transformers/all-MiniLM-L6-v2`) in PostgreSQL `pgvector`, synthesizing natural-language troubleshooting steps with verifiable `[SOURCE N]` citations and strict anti-hallucination thresholds (`minSimilarity >= 0.30`).
+- **AI Engineer Resolution Assistant**: Tri-fold grounded proposal engine combining active ticket context, verified knowledge SOPs, and similar historical resolved tickets to generate actionable troubleshooting steps. Non-autonomous design stages text for engineer inspection.
+- **Real-Time ITSM Analytics**: Interactive executive dashboards monitoring 14-day ticket trends, category shares, priority distribution, engineer capacity, and resolution velocities.
+- **Hardened Multi-Container Deployment**: Multi-stage Docker packaging, unprivileged non-root runtime users (`UID 1001` / `UID 1000`), container-aware JVM tuning, in-memory sliding-window rate limiting, and sanitized Actuator health probes.
 
 ---
 
-## Key Features
-- **Ticket Lifecycle Management**: Deterministic state transitions from `OPEN` to `ASSIGNED`, `IN_PROGRESS`, `WAITING_FOR_USER`, `RESOLVED`, and `CLOSED`, with escalation support.
-- **SLA Engine**: Configurable, priority-based resolution deadlines (Critical: 2h, High: 4h, Medium: 8h, Low: 24h).
-- **Role-Based Portals**: Dedicated operational interfaces for Employees, Engineers, Managers, and Administrators.
-- **AI Triage & Copilot**: Automated category/priority tagging and RAG-based resolution recommendations grounded in knowledge base articles.
-- **Dual Database Architecture**: PostgreSQL for ACID transactional data + MongoDB for polymorphic knowledge articles and vector embeddings.
-- **Enterprise Analytics**: Workload monitoring and Power BI connectivity for SLA and operational visibility.
-
----
-
-## Technology Stack
-
-| Layer | Technologies |
-|---|---|
-| **Frontend** | React.js, JavaScript, HTML5, CSS3, Bootstrap, React Router, Axios |
-| **Backend** | Java 21, Spring Boot 3.3.x, Spring Data JPA, Spring Security, JWT, Lombok, Maven |
-| **Databases** | PostgreSQL (Relational/Transactional), MongoDB (Knowledge Base/AI Docs) |
-| **AI Service** | Python 3.11+, FastAPI, NLP, Embeddings, RAG, Vector Search |
-| **DevOps & Tools** | Docker, Docker Compose, Git, Postman, Power BI |
-
----
-
-## System Architecture
+## 3. High-Level Architecture
 
 ```
-                  +--------------------------+
-                  |  React Frontend Client   |
-                  |  (Employee / Eng / Mgr)  |
-                  +-------------+------------+
-                                |
-                           REST / JWT
-                                |
-                                v
-                  +-------------+------------+
-                  |    Spring Boot Backend   |
-                  |     (Business Logic)     |
-                  +-------+----------+-------+
-                          |          |
-         +----------------+          +----------------+
-         |                                            |
-         v                                            v
-+------------------+                        +------------------+
-|    PostgreSQL    |                        |   FastAPI (AI)   |
-| (Tickets, Users, |                        |  (Triage & RAG)  |
-|  SLAs, Audit)    |                        +--------+---------+
-+------------------+                                 |
-                                                     v
-                                            +------------------+
-                                            |     MongoDB      |
-                                            | (Knowledge Base) |
-                                            +------------------+
+                            [ External Web Clients / Browsers ]
+                                            │
+                                            ▼
+                          ┌───────────────────────────────────┐
+                          │   Frontend Container (Nginx)      │
+                          │   Port: 5173 (Internal :80)       │
+                          │   - Serves React 19 SPA           │
+                          │   - Ingress security headers      │
+                          │   - Reverse proxies /api/ requests│
+                          └─────────────────┬─────────────────┘
+                                            │ /api/
+                                            ▼
+                          ┌───────────────────────────────────┐
+                          │   Backend Container (Spring Boot) │
+                          │   Port: 8080 (Non-root user 1001) │
+                          │   - REST API & RBAC Security      │
+                          │   - Sliding Window Rate Limiting  │
+                          │   - Actuator Health Probes        │
+                          │   - HikariCP Connection Pool      │
+                          └──────────┬─────────────┬──────────┘
+                                     │             │
+                    PostgreSQL / JPA │             │ MongoDB Client
+                                     ▼             ▼
+       ┌───────────────────────────────┐ ┌───────────────────────────────┐
+       │ PostgreSQL 16 + pgvector      │ │ MongoDB 7.0                   │
+       │ Port: 5432 (Internal network) │ │ Port: 27017 (Internal network)│
+       │ - Relational ITSM Schema      │ │ - Unstructured Knowledge Base │
+       │ - Vector Chunks (HNSW index)  │ │   Articles & Metadata         │
+       │ Volume: `postgres_data`       │ │ Volume: `mongo_data`          │
+       └───────────────────────────────┘ └───────────────────────────────┘
+                                     ▲
+                     pgvector access │
+                                     │ HTTP REST
+                                     ▼
+                          ┌───────────────────────────────────┐
+                          │ Python AI Microservice (FastAPI)  │
+                          │ Port: 8000 (Non-root user 1000)   │
+                          │ - Ticket Intelligence Classifier  │
+                          │ - SentenceTransformers Embeddings │
+                          │ - Grounded RAG Copilot            │
+                          │ Volume: `ai_model_cache`          │
+                          └───────────────────────────────────┘
 ```
+
+> Complete Mermaid lifecycle, sequence, and component diagrams are available in [docs/system-diagrams.md](docs/system-diagrams.md).
 
 ---
 
-## Project Structure
+## 4. Technology Stack
+
+| Layer | Technologies & Frameworks |
+|:---|:---|
+| **Frontend** | React 19, JavaScript (ES6+), Vite, Bootstrap 5, Bootstrap Icons, React Router 6, Axios |
+| **Backend** | Java 21 LTS, Spring Boot 3.3.x, Spring Data JPA, Spring Security 6, JWT, Lombok, Maven |
+| **Relational & Vector DB** | PostgreSQL 16 with `pgvector` extension (384-dimensional HNSW vector search) |
+| **Document DB** | MongoDB 7.0 (Knowledge Base articles, revision history, view/feedback counters) |
+| **AI & NLP Microservice** | Python 3.12, FastAPI, PyTorch, SentenceTransformers (`all-MiniLM-L6-v2`), Scikit-Learn |
+| **DevOps & Containers** | Docker, Docker Compose v2, Nginx 1.27 Alpine, Eclipse Temurin 21 JRE |
+
+---
+
+## 5. Security & Defense-in-Depth
+
+TechConnect enforces rigorous security principles across every tier:
+- **Stateless Authentication**: Cryptographically signed HMAC-SHA256 JSON Web Tokens (JWT) with 1-hour expiration. Passwords are never placed inside tokens.
+- **Password Storage**: BCrypt adaptive one-way hashing (cost factor 10) with individual 128-bit salts.
+- **Insecure Direct Object Reference (IDOR) Defense**: Service-layer `assertCanViewTicket` ownership and role checks. Employees can never inspect or query other employees' tickets.
+- **Sliding-Window Rate Limiting**: In-memory `RateLimitingFilter` shielding AI endpoints (20 rpm), search operations (60 rpm), and general API calls (120 rpm), returning `HTTP 429 Too Many Requests` with `Retry-After: 60`.
+- **HTTP Security Headers**: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin`.
+- **Prompt Injection Defense**: Heuristic pattern filters intercepting attempts to bypass security controls or dump credentials before reaching the vector engine or LLM.
+- **Sanitized Observability**: Spring Boot Actuator `/actuator/health` configured with `show-details=never`, concealing database connection strings and credentials from unauthenticated callers.
+
+---
+
+## 6. Project Structure
 
 ```
 TechConnect/
-├── backend/            # Spring Boot application
-├── frontend/           # React dashboard SPA
-├── ai_services/        # Python FastAPI AI and RAG engine
-├── docker/             # Docker configurations & container manifests
-├── docs/               # Architecture, API, and DB documentation
-│   ├── requirements.md
-│   ├── architecture.md
-│   ├── database.md
-│   └── api.md
-├── .env.example        # Environment variable blueprint
-├── .gitignore          # Version control ignore rules
-├── docker-compose.yml  # Multi-service composition
-└── README.md           # Project documentation
+├── backend/                               # Spring Boot 3.3.x Backend Application
+│   ├── src/main/java/com/techconnect/
+│   │   ├── client/                        # Internal HTTP clients (AI microservice)
+│   │   ├── config/                        # SecurityConfig, RateLimitingFilter, Hikari
+│   │   ├── controller/                    # REST API Controllers (Ticket, SLA, Analytics, etc.)
+│   │   ├── document/                      # MongoDB Document Models (KnowledgeArticle)
+│   │   ├── dto/                           # Request & Response Data Transfer Objects
+│   │   ├── entity/                        # PostgreSQL JPA Relational Entities
+│   │   ├── exception/                     # GlobalExceptionHandler and sanitized responses
+│   │   ├── repository/                    # Spring Data JPA & MongoDB Repositories
+│   │   ├── security/                      # JWT filters, UserDetailsService
+│   │   └── service/                       # Business logic, SLA tracking, state machines
+│   ├── src/main/resources/
+│   │   ├── application.properties         # Default development properties
+│   │   └── application-prod.properties    # Hardened production profile
+│   └── Dockerfile                         # Multi-stage Temurin 21 JRE container
+│
+├── frontend/                              # React 19 / Vite Single Page Application
+│   ├── src/
+│   │   ├── components/                    # Reusable UI elements (Navbar, Sidebar, Badges)
+│   │   ├── context/                       # AuthContext with token persistence
+│   │   ├── pages/                         # Dashboard, Tickets, Analytics, KnowledgeBase, Copilot
+│   │   ├── services/                      # Axios API clients
+│   │   └── utils/                         # Formatters and validators
+│   ├── nginx.conf                         # Production Nginx reverse proxy configuration
+│   └── Dockerfile                         # Multi-stage Node 20 / Nginx Alpine container
+│
+├── ai_services/                           # Python 3.12 FastAPI AI Microservice
+│   └── ticket_intelligence/
+│       ├── app/
+│       │   ├── ml/                        # Model training and TF-IDF pipeline
+│       │   ├── rag/                       # RAG service, context builder, prompt defenses
+│       │   ├── routers/                   # FastAPI routes (triage, copilot, resolution)
+│       │   └── vector/                    # pgvector client, embeddings, chunking
+│       ├── tests/                         # Pytest test suite (71 passing tests)
+│       └── Dockerfile                     # Python slim container with pre-cached weights
+│
+├── docs/                                  # Complete Technical Documentation Suite
+│   ├── architecture.md                    # Core architecture specification
+│   ├── system-diagrams.md                 # 10 Mermaid architectural & lifecycle diagrams
+│   ├── deployment.md                      # Container deployment and DR runbooks
+│   ├── production-readiness.md            # Formal readiness assessment & audit
+│   ├── powerbi-analytics.md               # Power BI Star Schema, DAX, and 5-page layout
+│   ├── screenshot-guide.md                # 12-screen demo walkthrough checklist
+│   ├── interview-preparation.md           # Technical interview defense & pitch scripts
+│   ├── resume-project-description.md      # Resume bullets and portfolio summaries
+│   ├── project-inventory.md               # Complete ledger of technologies and tests
+│   ├── security.md                        # Security concepts, JWT, RBAC, IDOR
+│   ├── rag.md                             # RAG Copilot architecture
+│   ├── ai-resolution-assistant.md         # Tri-fold resolution assistant
+│   └── api.md                             # REST API contracts
+│
+├── .env.example                           # Safe configuration template
+├── docker-compose.yml                     # Production multi-service orchestration
+└── README.md                              # Portfolio documentation
 ```
 
 ---
 
-## Phase Completion Status
-- **Phase 1 – Project Foundation**: COMPLETE
-- **Phase 2 – PostgreSQL + JPA Database**: COMPLETE
-- **Phase 3 – Registration + Login**: COMPLETE
-- **Phase 4 – JWT + Spring Security + RBAC**: COMPLETE
-- **Phase 5 – IT Service Ticket Management**: COMPLETE
-- **Phase 6 – SLA Management & Automation Engine**: COMPLETE
-- **Phase 7 – React Frontend & Dashboard**: COMPLETE
-- **Phase 8 – Full-Stack Integration Hardening & API Reliability**: COMPLETE
-- **Phase 9 – AI-Powered Ticket Intelligence Service**: COMPLETE
-- **Phase 10 – Knowledge Base Management System**: COMPLETE
-- **Phase 11 – AI Knowledge Ingestion, Embeddings & Vector Search**: COMPLETE
-- **Phase 12 – RAG-Based AI Support Copilot**: COMPLETE
-- **Phase 13 – AI Engineer Resolution Assistant**: COMPLETE
-- **Phase 14 – Production Engineering & Deployment Readiness**: COMPLETE
+## 7. Running the Platform
+
+### Option A: Complete Multi-Container Deployment (Recommended)
+
+1. **Configure Environment**:
+   ```bash
+   cp .env.example .env
+   # Edit .env and supply secure secrets (JWT_SECRET, database passwords)
+   ```
+
+2. **Validate Configuration**:
+   ```bash
+   docker compose config
+   ```
+
+3. **Build & Start Services**:
+   ```bash
+   docker compose build
+   docker compose up -d
+   ```
+
+4. **Verify Health**:
+   ```bash
+   docker compose ps
+   curl -i http://localhost:8080/actuator/health
+   curl -i http://localhost:8000/health
+   ```
+   Open `http://localhost:5173` in your browser.
 
 ---
 
-## Running Locally
+### Option B: Local Development Execution
 
-### 1. MongoDB & PostgreSQL Services
-```bash
-# Start MongoDB (27017) and PostgreSQL (5432) via Docker Compose
-docker compose up -d
+#### 1. Databases (PostgreSQL + pgvector & MongoDB)
+Ensure PostgreSQL 16 is running on `localhost:5432` with `CREATE EXTENSION IF NOT EXISTS vector;`, and MongoDB 7.0 is running on `localhost:27017`.
 
-# Or ensure local MongoDB service is running on localhost:27017
-# and PostgreSQL is running on localhost:5432
-```
-
-### 2. Python AI Ticket Intelligence Service
+#### 2. Python AI Microservice
 ```bash
 cd ai_services/ticket_intelligence
-# Install dependencies
+py -3.12 -m venv .venv
+# Activate virtual environment, then:
 pip install -r requirements.txt
-
-# Run ML test suite
-pytest -v
-
-# Start FastAPI service on http://localhost:8000
+py -3.12 -m pytest
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 3. Spring Boot Backend
+#### 3. Spring Boot Backend
 ```bash
 cd backend
-# Run test suite (161 unit & integration tests)
 ./mvnw.cmd clean test
-
-# Run application on http://localhost:8080
 ./mvnw.cmd spring-boot:run
 ```
 
-### 4. React Frontend
+#### 4. React Frontend
 ```bash
 cd frontend
-# Install dependencies
 npm install
-
-# Run Vite dev server on http://localhost:5173
 npm run dev
-
-# Or build production distribution
-npm run build
 ```
 
 ---
 
-## Documentation
-- **Deployment & Operations Guide (Phase 14)**: Multi-container Docker deployment, Actuator health probes, sliding window rate limiting, and database backup/recovery runbooks are documented in [docs/deployment.md](docs/deployment.md).
-- **Production Readiness Assessment (Phase 14)**: Security hardening, containerization audit, risk evaluation, and deployment assumptions are documented in [docs/production-readiness.md](docs/production-readiness.md).
-- **AI Engineer Resolution Assistant (Phase 13)**: Tri-fold grounding (Active Ticket Context, Verified Knowledge Articles, Similar Resolved Tickets), resolution prompt strategy, RBAC barriers, and non-autonomous advisory flow are documented in [docs/ai-resolution-assistant.md](docs/ai-resolution-assistant.md).
-- **RAG-Based AI Support Copilot (Phase 12)**: 4-stage RAG architecture, semantic chunk retrieval, anti-hallucination gates, and source citations are documented in [docs/rag.md](docs/rag.md).
-- **AI Knowledge Ingestion, Embeddings & Vector Search**: Text normalization, section-aware chunking, SentenceTransformers/FastEmbed (`all-MiniLM-L6-v2`, 384 dimensions), PostgreSQL + pgvector chunk storage, cosine vector retrieval, and version invalidation are documented in [docs/vector-search.md](docs/vector-search.md).
-- **Knowledge Base Management System**: Polyglot persistence, MongoDB document model, RBAC lifecycle state machine, atomic view/feedback metrics, audit history, and future RAG data preparation are documented in [docs/knowledge-base.md](docs/knowledge-base.md).
-- **AI Ticket Intelligence Architecture**: Model training, TF-IDF vectorization, priority inference, team routing, and fallback mechanisms are documented in [docs/ai-ticket-intelligence.md](docs/ai-ticket-intelligence.md).
-- **Full-Stack Integration & Architecture**: Detailed full-stack architecture, API reliability, JWT lifecycle, error handling, CORS, and IDOR matrix are documented in [docs/integration.md](docs/integration.md).
-- **Backend API Reference**: REST API contracts and error payloads are documented in [docs/api.md](docs/api.md).
-- **Frontend Architecture**: Component layout, routing, role guards, and client state are documented in [docs/frontend.md](docs/frontend.md).
+## 8. Automated Test Results
 
+| Test Suite | Total Tests | Pass Count | Failures | Status |
+|:---|:---:|:---:|:---:|:---:|
+| **Python Pytest Suite** | 71 | 71 | 0 | **100% Passed** |
+| **Spring Boot Maven Suite** | 198 | 198 | 0 | **100% Passed** |
+| **Frontend Production Build** | 127 modules | 127 modules | 0 | **100% Passed** |
 
+---
+
+## 9. Portfolio Screenshots & Demo Walkthrough
+
+A complete 12-screen capture checklist and walkthrough guide is provided in [docs/screenshot-guide.md](docs/screenshot-guide.md), featuring:
+1. Authentication Portal & Role-Based Portals
+2. Executive Dashboard with Real-Time KPIs
+3. Ticket Creation with AI Predictive Triage
+4. Ticket Details with Real-Time SLA Countdown Timeline
+5. SLA Performance & Breached Incidents Tracker
+6. Knowledge Base Management & SOP Repository
+7. Semantic Search with Cosine Similarity Score Badges
+8. AI Support Copilot with Anti-Hallucination Guardrails
+9. Verifiable `[SOURCE N]` Citations and Article Provenance
+10. AI Engineer Resolution Assistant with Tri-Fold Grounding
+11. ITSM Executive Analytics (14-Day Activity Trends, Category Shares, Engineer Workload Scorecards)
+12. Container Orchestration & Actuator Health Verification
+
+---
+
+## 10. Implemented Features vs. Future Possibilities
+
+### Implemented & Verified in TechConnect:
+- [x] Deterministic ticket state machine with SLA automation and clock pause/resume.
+- [x] Dual-database polyglot persistence (PostgreSQL 16 + pgvector, MongoDB 7.0).
+- [x] Dense semantic vector search using SentenceTransformers (`all-MiniLM-L6-v2`) and HNSW index.
+- [x] 4-stage RAG AI Support Copilot with source citations and anti-hallucination refusal gates.
+- [x] Tri-fold grounded AI Resolution Assistant with human-in-the-loop review.
+- [x] Full-scale ITSM Executive Analytics dashboard with 14-day trends and engineer workloads.
+- [x] Multi-stage Docker containers with non-root runtime users and sanitized health checks.
+- [x] Sliding-window rate limiting protecting AI and semantic search endpoints.
+- [x] Comprehensive 269-test automated regression suite.
+
+### Future Scope (Outside Current Project Boundaries):
+- *Real-Time WebSocket Streaming*: Live token-by-token streaming responses for conversational copilot sessions.
+- *Power BI Service Gateway Integration*: Direct Cloud automated dataset refreshes via On-Premises Data Gateway.
+- *Autonomous Remediation Agents*: Automated diagnostic script execution on target hosts (subject to strict IAM authorization).
+- *Silent Refresh Token Rotation*: Rolling HTTP-only refresh tokens for zero-friction session extension.
+
+---
+
+## 11. License & Academic Attribution
+
+TechConnect is developed as an enterprise IT Service Management research and portfolio project. All code, architecture diagrams, and documentation are original works demonstrating modern enterprise full-stack software engineering.

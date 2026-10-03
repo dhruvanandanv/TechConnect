@@ -19,6 +19,7 @@ import KnowledgeBase from './pages/KnowledgeBase';
 import KnowledgeArticleView from './pages/KnowledgeArticleView';
 import KnowledgeArticleEditor from './pages/KnowledgeArticleEditor';
 import AiSupportCopilot from './pages/AiSupportCopilot';
+import Analytics from './pages/Analytics';
 import NotFound from './pages/NotFound';
 
 import './App.css';
@@ -118,12 +119,25 @@ function App() {
             {/* AI Support Copilot Route (Phase 12) */}
             <Route path="/ai-support" element={<AiSupportCopilot />} />
 
+            {/* User Profile */}
+            <Route path="/profile" element={<Profile />} />
+
             {/* Manager and Admin SLA Dashboard */}
             <Route
               path="/sla"
               element={
                 <RoleGuard allowedRoles={['ROLE_MANAGER', 'ROLE_ADMIN']}>
                   <SlaDashboard />
+                </RoleGuard>
+              }
+            />
+
+            {/* ITSM Executive Analytics Dashboard */}
+            <Route
+              path="/analytics"
+              element={
+                <RoleGuard allowedRoles={['ROLE_ENGINEER', 'ROLE_MANAGER', 'ROLE_ADMIN']}>
+                  <Analytics />
                 </RoleGuard>
               }
             />

@@ -58,16 +58,26 @@ const Sidebar = ({ isOpen, onCloseMobile }) => {
           </NavLink>
         )}
 
-        {isManagerOrAdmin && (
+        {(isManagerOrAdmin || isEngineer) && (
           <>
-            <div className="tc-nav-section-title mt-3">Governance & SLA</div>
+            <div className="tc-nav-section-title mt-3">Governance & Analytics</div>
+            {isManagerOrAdmin && (
+              <NavLink
+                to="/sla"
+                className={({ isActive }) => `tc-nav-link ${isActive ? 'active' : ''}`}
+                onClick={onCloseMobile}
+              >
+                <i className="bi bi-clock-history"></i>
+                <span>SLA Performance</span>
+              </NavLink>
+            )}
             <NavLink
-              to="/sla"
+              to="/analytics"
               className={({ isActive }) => `tc-nav-link ${isActive ? 'active' : ''}`}
               onClick={onCloseMobile}
             >
-              <i className="bi bi-clock-history"></i>
-              <span>SLA Performance</span>
+              <i className="bi bi-graph-up-arrow"></i>
+              <span>ITSM Analytics</span>
             </NavLink>
           </>
         )}

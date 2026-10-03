@@ -103,6 +103,12 @@ const Dashboard = () => {
             <i className="bi bi-plus-lg"></i>
             <span>Create Ticket</span>
           </Link>
+          {(isManagerOrAdmin || isEngineer) && (
+            <Link to="/analytics" className="btn btn-outline-primary d-flex align-items-center gap-2">
+              <i className="bi bi-graph-up-arrow"></i>
+              <span>Analytics</span>
+            </Link>
+          )}
           {isManagerOrAdmin && (
             <Link to="/sla" className="btn btn-outline-secondary d-flex align-items-center gap-2">
               <i className="bi bi-clock-history"></i>
