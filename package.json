@@ -1,0 +1,13 @@
+{
+  "name": "techconnect-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TechConnect Enterprise IT Service Management Platform",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "frontend": "npm --prefix frontend run dev",
+    "backend": "mvnw.cmd -f backend/pom.xml spring-boot:run",
+    "ai": "py -3.12 -m uvicorn app.main:app --app-dir ai_services/ticket_intelligence --host 0.0.0.0 --port 8000 --reload"
+  }
+}
