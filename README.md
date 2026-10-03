@@ -164,6 +164,8 @@ npm run build
 ---
 
 ## Documentation
+- **AI Engineer Resolution Assistant (Phase 13)**: Tri-fold grounding (Active Ticket Context, Verified Knowledge Articles, Similar Resolved Tickets), resolution prompt strategy, RBAC barriers, and non-autonomous advisory flow are documented in [docs/ai-resolution-assistant.md](docs/ai-resolution-assistant.md).
+- **RAG-Based AI Support Copilot (Phase 12)**: 4-stage RAG architecture, semantic chunk retrieval, anti-hallucination gates, and source citations are documented in [docs/rag.md](docs/rag.md).
 - **AI Knowledge Ingestion, Embeddings & Vector Search**: Text normalization, section-aware chunking, SentenceTransformers/FastEmbed (`all-MiniLM-L6-v2`, 384 dimensions), PostgreSQL + pgvector chunk storage, cosine vector retrieval, and version invalidation are documented in [docs/vector-search.md](docs/vector-search.md).
 - **Knowledge Base Management System**: Polyglot persistence, MongoDB document model, RBAC lifecycle state machine, atomic view/feedback metrics, audit history, and future RAG data preparation are documented in [docs/knowledge-base.md](docs/knowledge-base.md).
 - **AI Ticket Intelligence Architecture**: Model training, TF-IDF vectorization, priority inference, team routing, and fallback mechanisms are documented in [docs/ai-ticket-intelligence.md](docs/ai-ticket-intelligence.md).

@@ -10,6 +10,7 @@ import SlaBadge from '../components/SlaBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
 import ErrorAlert from '../components/ErrorAlert';
 import { formatDate, formatDurationMinutes, formatEnum, formatRole } from '../utils/formatters';
+import AiResolutionAssistantSection from '../components/resolution/AiResolutionAssistantSection';
 
 const TicketDetails = () => {
   const { id } = useParams();
@@ -290,6 +291,21 @@ const TicketDetails = () => {
     }
   };
 
+  /**
+   * Staging handler for Phase 13 AI Resolution Assistant.
+   * Copies the synthesized resolution proposal into the status update form
+   * with status pre-selected to RESOLVED, and opens the status modal for engineer review.
+   * NEVER automatically submits or mutates the ticket.
+   */
+  const handleApplyResolution = (suggestionText) => {
+    setStatusForm((prev) => ({
+      ...prev,
+      status: 'RESOLVED',
+      resolutionDescription: suggestionText,
+    }));
+    setShowStatusModal(true);
+  };
+
   if (loading) {
     return <LoadingSpinner message="Retrieving ticket records and SLA metrics..." />;
   }
@@ -443,6 +459,15 @@ const TicketDetails = () => {
       <div className="row g-4 mb-4">
         {/* Left Column: Overview Details & Tabbed Sections */}
         <div className="col-12 col-lg-8">
+          {/* Phase 13 AI Engineer Resolution Assistant */}
+          {isStaff && (
+            <AiResolutionAssistantSection
+              ticket={ticket}
+              isStaff={isStaff}
+              onApplyResolution={handleApplyResolution}
+            />
+          )}
+
           <div className="tc-card mb-4">
             <div className="tc-card-header">
               <ul className="nav nav-tabs card-header-tabs border-0">

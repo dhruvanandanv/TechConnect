@@ -333,3 +333,18 @@ $$\text{Precision} = \frac{|\text{Relevant Chunks Retrieved}|}{|\text{Total Chun
 ### 20. What is retrieval recall?
 The fraction of all relevant documents in the database that are successfully retrieved:
 $$\text{Recall} = \frac{|\text{Relevant Chunks Retrieved}|}{|\text{Total Relevant Chunks in Knowledge Base}|}$$
+
+---
+
+## 14. Phase 13 — RAG for Engineer Resolution Assistance
+
+Phase 13 expands TechConnect's RAG architecture to support Tier 2/3 IT engineers with contextual resolution assistance:
+1. **Dual Retrieval**:
+   - Semantic retrieval of published knowledge articles via pgvector.
+   - Dense vector ranking of historical resolved tickets (`status IN ('RESOLVED', 'CLOSED')`).
+2. **Context Synthesis**:
+   - `ResolutionContextBuilder` allocates budget across Active Ticket (priority 1), Knowledge Base SOPs (priority 2), and Historical Resolutions (priority 3).
+   - Strict 4,500 character budget cap.
+3. **Structured Response Contract**:
+   - Returns concise resolution summary, discrete numbered troubleshooting steps, verifiable knowledge citations, similar historical ticket matches, and retrieval metadata.
+   - For full details, see [docs/ai-resolution-assistant.md](ai-resolution-assistant.md).

@@ -185,3 +185,28 @@ Vector retrieval in PostgreSQL adheres to the same authorization boundaries as t
 - `ROLE_ENGINEER`: Permitted to access `PUBLISHED` articles plus their own authored drafts.
 - `ROLE_MANAGER` & `ROLE_ADMIN`: Global visibility across all document lifecycles.
 
+---
+
+## 10. AI Engineer Resolution Assistant Security Controls (Phase 13)
+
+### 10.1 Role-Based Endpoint Protection
+- The resolution endpoint `POST /api/ai/tickets/{ticketId}/resolution-suggestion` is protected via `@PreAuthorize("hasAnyRole('ENGINEER', 'MANAGER', 'ADMIN')")`.
+- `ROLE_EMPLOYEE` access attempts are rejected immediately with **HTTP 403 Forbidden**.
+- Defense-in-depth role assertions in the service layer verify caller authorities independently of controller routing.
+
+### 10.2 Ticket Context IDOR Protection
+- Before retrieving context or dispatching requests to the AI engine, Spring Boot performs an IDOR authorization check via `ticketService.getTicketById(ticketId, currentUserEmail)`.
+- If an engineer attempts to query a ticket assigned to another engineer (or not created by them or not open in their queue), `TicketAccessDeniedException` is thrown, returning **HTTP 403 Forbidden**.
+
+### 10.3 Historical Ticket Data Sanitization
+- Historical resolved tickets used as context are filtered to exclude PII, passwords, authentication tokens, requester emails/phones, and employee remarks.
+- Candidate historical tickets are truncated to a maximum of 500 characters for both problem and resolution fields, preventing context-stuffing and denial-of-service vulnerabilities.
+
+### 10.4 Non-Autonomous Safety Invariant
+- The AI Resolution Assistant is strictly non-autonomous:
+  - It cannot mutate ticket status or priority.
+  - It cannot resolve or close tickets.
+  - It cannot modify SLA parameters.
+- In the frontend, the "Copy to Resolution" button merely stages the suggested text in the resolution modal textarea. The human engineer must review and manually submit the resolution.
+
+

@@ -45,4 +45,7 @@ public interface TicketRepository extends JpaRepository<Ticket, Long>, JpaSpecif
     List<Ticket> findTicketsApproachingDeadline(@Param("now") LocalDateTime now, @Param("threshold") LocalDateTime threshold);
 
     List<Ticket> findByStatusNot(TicketStatus status);
+
+    @Query("SELECT t FROM Ticket t WHERE t.status IN (com.techconnect.entity.enums.TicketStatus.RESOLVED, com.techconnect.entity.enums.TicketStatus.CLOSED) AND t.id != :excludeId AND t.resolutionDescription IS NOT NULL AND LENGTH(TRIM(t.resolutionDescription)) > 0 ORDER BY t.updatedAt DESC")
+    List<Ticket> findResolvedTicketsForResolutionMatching(@Param("excludeId") Long excludeId, Pageable pageable);
 }

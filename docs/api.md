@@ -1088,6 +1088,74 @@ The TechConnect Spring Boot backend configures CORS in `com.techconnect.config.S
 - `HTTP 400 Bad Request`: Query was blank or exceeded 1,000 characters.
 - `Graceful Fallback`: If the AI microservice or LLM provider is offline, returns `HTTP 200 OK` with `grounded: false` and message `"The AI Support Copilot is temporarily unavailable. You can still use Knowledge Base search."` Zero stack traces or credentials leaked.
 
+---
 
+### 3.12 AI Engineer Resolution Assistant (Phase 13)
 
+#### `POST /api/ai/tickets/{ticketId}/resolution-suggestion`
+- **Description**: Synthesizes a grounded, advisory troubleshooting and resolution proposal for an active IT ticket. Combines the active ticket's context, verified published knowledge articles, and similar resolved historical tickets.
+- **Authentication**: JWT Bearer Token required (`Authorization: Bearer <token>`).
+- **Authorization**: Strictly restricted to `ROLE_ENGINEER`, `ROLE_MANAGER`, `ROLE_ADMIN`. Standard `ROLE_EMPLOYEE` requests are rejected with `403 Forbidden`.
+- **IDOR Protection**: `assertCanViewTicket` verifies ticket visibility before triggering AI synthesis.
+- **Request Parameters**:
+  - `ticketId` (path, required): ID of the ticket.
+  - `topK` (body, optional, integer, 1-10, default: 5): Maximum number of knowledge chunks and historical tickets to evaluate.
+  - `minSimilarity` (body, optional, decimal, 0.0-1.0, default: 0.30): Minimum cosine similarity cutoff.
+- **HTTP Status**: `200 OK`
 
+#### Request Example:
+```json
+{
+  "topK": 5,
+  "minSimilarity": 0.30
+}
+```
+
+#### Response Example (`200 OK` - Grounded Suggestion):
+```json
+{
+  "ticketId": 104,
+  "suggestion": "Reset the user AnyConnect client profile and flush DNS cache.",
+  "grounded": true,
+  "steps": [
+    "Flush local DNS cache via 'ipconfig /flushdns'",
+    "Delete corrupted AnyConnect profile XML under ProgramData\\Cisco\\Cisco AnyConnect Secure Mobility Client\\Profile",
+    "Restart Cisco AnyConnect Secure Mobility Agent service in services.msc",
+    "Relaunch AnyConnect and test connection"
+  ],
+  "sources": [
+    {
+      "type": "KNOWLEDGE_ARTICLE",
+      "articleId": "art-vpn-101",
+      "chunkId": "art-vpn-101-res-0",
+      "title": "Cisco AnyConnect Troubleshooting",
+      "section": "RESOLUTION",
+      "similarity": 0.892,
+      "version": 2
+    }
+  ],
+  "similarTickets": [
+    {
+      "ticketId": 456,
+      "similarity": 0.841,
+      "category": "VPN",
+      "priority": "HIGH"
+    }
+  ],
+  "retrievalMeta": {
+    "topK": 5,
+    "knowledgeChunksUsed": 1,
+    "similarTicketsUsed": 1,
+    "bestSimilarity": 0.892
+  },
+  "provider": "techconnect-resolution-synthesizer",
+  "model": "grounded-extractive-v1",
+  "processingTimeMs": 55
+}
+```
+
+#### Security & Error Responses:
+- `HTTP 401 Unauthorized`: Missing, expired, or invalid JWT.
+- `HTTP 403 Forbidden`: User has `ROLE_EMPLOYEE` or does not have permission to access the specified ticket (IDOR defense).
+- `HTTP 404 Not Found`: Ticket with the specified `ticketId` does not exist.
+- `Graceful Fallback`: If Python microservice or LLM provider is offline, returns `HTTP 200 OK` with `grounded: false` and message `"The AI Resolution Assistant is temporarily unavailable. Please refer to standard SOPs."` Zero stack traces or credentials leaked.

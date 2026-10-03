@@ -3,7 +3,7 @@ LLM Provider Abstraction Module for TechConnect RAG.
 Defines the abstract interface that decouples RAG synthesis from specific LLM vendors.
 """
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Any
 from app.rag.models import RagSourceChunk
 
 
@@ -25,6 +25,21 @@ class LlmProvider(ABC):
         """
         Generates a grounded technical answer from retrieved sources.
         Must strictly adhere to system grounding rules.
+        """
+        pass
+
+    @abstractmethod
+    def generate_resolution_suggestion(
+        self,
+        system_prompt: str,
+        user_prompt: str,
+        context: str,
+        knowledge_sources: List[RagSourceChunk],
+        similar_tickets: List[Any]
+    ) -> tuple[str, List[str]]:
+        """
+        Generates a grounded technical resolution suggestion and discrete steps
+        using retrieved knowledge sources and similar historical tickets.
         """
         pass
 

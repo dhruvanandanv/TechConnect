@@ -364,11 +364,24 @@ Browser (React) ──[POST /api/ai/copilot/answer]──> Spring Boot ──[PO
 
 ---
 
-## 15. Known Limitations (Post-Phase 12)
-- **Single-Turn Interaction**: Copilot currently processes single-turn question-to-grounded-answer inquiries. Persistent multi-turn chat sessions belong to future enhancements.
-- **Advisory Only**: AI Copilot cannot autonomously close tickets, assign engineers, or alter SLAs. Human confirmation is strictly required.
+## 15. AI Engineer Resolution Assistant Integration (Phase 13)
+
+### 15.1 Flow & Staging Architecture
+```
+TicketDetails.jsx (React) ──[POST /api/ai/tickets/{id}/resolution-suggestion]──> Spring Boot ──[POST /api/v1/rag/resolution-suggestion]──> Python RAG ──> LLM Provider
+```
+1. **Frontend**: Accessible only to staff (`isStaff`). Generates a grounded suggestion, displays numbered troubleshooting steps, verifiable knowledge citations, and similar historical resolved tickets.
+2. **Copy to Resolution**: Populates the status update form's resolution textarea and sets status to `RESOLVED`. Opens the modal for human engineer review and manual submission. Never auto-submits.
+3. **Backend Authorization & IDOR**: Requires `ROLE_ENGINEER`, `ROLE_MANAGER`, or `ROLE_ADMIN`. Calls `assertCanViewTicket` to prevent horizontal unauthorized access.
+4. **Historical Ticket Candidates**: Sanitized historical resolved tickets (`status IN ('RESOLVED','CLOSED')`) are forwarded to Python for semantic similarity matching.
+
+---
+
+## 16. Known Limitations (Post-Phase 13)
+- **Single-Turn Interaction**: The resolution assistant produces a point-in-time resolution proposal per ticket. Multi-turn interactive troubleshooting sessions belong to future enhancements.
+- **Strictly Advisory**: The AI cannot autonomously resolve, close, assign, or mutate tickets.
 - **Token Refresh**: Silent refresh token rotation is not yet implemented; users must re-authenticate upon token expiration.
-- **WebSocket Streaming**: Copilot returns structured JSON responses; streaming token chunk delivery is not yet implemented.
+- **WebSocket Streaming**: Copilot and Resolution Assistant return structured JSON; token streaming is omitted by design.
 
 
 

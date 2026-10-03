@@ -162,5 +162,23 @@ Python AI Service (app/rag/)
 3. **No Autonomous Actions**: Copilot is strictly advisory and cannot modify tickets, execute commands, or adjust SLAs.
 4. **Anti-Hallucination Quality Gate**: If semantic retrieval yields no chunks above the similarity threshold, the LLM is never called, and a safe refusal message is returned immediately.
 
+---
+
+## 8. Phase 13 — AI Engineer Resolution Assistant
+
+Phase 13 introduces an engineer-facing resolution assistant that empowers support engineers, managers, and administrators to synthesize grounded, actionable resolution proposals for active IT tickets.
+
+### 8.1 Tri-Fold Grounding Architecture
+The resolution assistant combines three data sources:
+1. **Active Ticket Profile**: Current ticket ID, title, problem description, category, and priority.
+2. **Authoritative Knowledge Base Articles**: Retrieved from PostgreSQL `knowledge_embedding_chunks` using `sentence-transformers/all-MiniLM-L6-v2` dense vector semantic search.
+3. **Similar Resolved Historical Tickets**: Historical tickets with status `RESOLVED` or `CLOSED` containing non-empty `resolutionDescription`, ranked by pairwise cosine similarity against the active ticket's embedding.
+
+### 8.2 Guardrails & Safety Invariants
+- **Non-Autonomous Invariant**: The assistant produces advisory text and discrete action steps. It **never** autonomously resolves tickets, closes tickets, modifies status, or adjusts SLAs.
+- **Copy to Resolution**: The frontend button only pre-fills the resolution textarea in the status transition modal. The engineer must manually inspect and submit the resolution.
+- **RBAC Gate**: Endpoint `POST /api/ai/tickets/{ticketId}/resolution-suggestion` strictly requires `ROLE_ENGINEER`, `ROLE_MANAGER`, or `ROLE_ADMIN`. Standard `ROLE_EMPLOYEE` requests are rejected with HTTP 403 Forbidden.
+- **IDOR Protection**: `assertCanViewTicket` verifies ticket visibility before triggering AI synthesis.
+
 
 

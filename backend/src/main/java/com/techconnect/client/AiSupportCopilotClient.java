@@ -133,4 +133,142 @@ public class AiSupportCopilotClient {
                 .processingTimeMs(processingTimeMs)
                 .build();
     }
+
+    /**
+     * Calls Python RAG service /api/v1/rag/resolution-suggestion with ticket and candidate historical tickets.
+     */
+    public com.techconnect.dto.resolution.ResolutionSuggestionResponse generateResolutionSuggestion(Map<String, Object> payload) {
+        Long ticketId = payload.get("ticketId") != null ? ((Number) payload.get("ticketId")).longValue() : null;
+
+        try {
+            log.debug("Dispatching resolution suggestion request to AI service at {}/api/v1/rag/resolution-suggestion", aiServiceUrl);
+
+            Map<String, Object> response = restClient.post()
+                    .uri("/api/v1/rag/resolution-suggestion")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+
+            if (response != null && response.containsKey("suggestion")) {
+                return mapToResolutionResponse(response, ticketId);
+            }
+
+            return buildFallbackResolutionResponse(
+                    ticketId,
+                    "The AI Resolution Assistant returned an empty proposal. Please review documentation manually."
+            );
+
+        } catch (ResourceAccessException ex) {
+            log.warn("AI service unreachable or timed out for resolution suggestion at {}: {}", aiServiceUrl, ex.getMessage());
+            return buildFallbackResolutionResponse(
+                    ticketId,
+                    "The AI Resolution Assistant is temporarily unavailable. You can still consult Knowledge Base articles and related tickets manually."
+            );
+        } catch (RestClientResponseException ex) {
+            log.warn("AI service returned error status {} for resolution suggestion: {}", ex.getStatusCode(), ex.getResponseBodyAsString());
+            return buildFallbackResolutionResponse(
+                    ticketId,
+                    "The AI Resolution Assistant is temporarily unavailable. You can still consult Knowledge Base articles and related tickets manually."
+            );
+        } catch (Exception ex) {
+            log.error("Unexpected error in AI resolution suggestion client: {}", ex.getMessage());
+            return buildFallbackResolutionResponse(
+                    ticketId,
+                    "An unexpected error occurred while communicating with the AI Resolution Assistant."
+            );
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private com.techconnect.dto.resolution.ResolutionSuggestionResponse mapToResolutionResponse(
+            Map<String, Object> map, Long fallbackTicketId) {
+
+        Long ticketId = map.get("ticketId") != null
+                ? ((Number) map.get("ticketId")).longValue()
+                : fallbackTicketId;
+        String suggestion = (String) map.getOrDefault("suggestion", "");
+        boolean grounded = Boolean.TRUE.equals(map.get("grounded"));
+        String model = (String) map.getOrDefault("model", "unknown");
+        String provider = (String) map.getOrDefault("provider", "unknown");
+        int processingTimeMs = map.get("processingTimeMs") != null
+                ? ((Number) map.get("processingTimeMs")).intValue()
+                : 0;
+
+        List<String> steps = new ArrayList<>();
+        if (map.get("steps") instanceof List) {
+            steps = (List<String>) map.get("steps");
+        }
+
+        List<com.techconnect.dto.resolution.ResolutionSourceDto> sources = new ArrayList<>();
+        if (map.get("sources") instanceof List) {
+            List<Map<String, Object>> rawSources = (List<Map<String, Object>>) map.get("sources");
+            for (Map<String, Object> s : rawSources) {
+                sources.add(com.techconnect.dto.resolution.ResolutionSourceDto.builder()
+                        .type((String) s.getOrDefault("type", "KNOWLEDGE_ARTICLE"))
+                        .articleId((String) s.get("articleId"))
+                        .chunkId((String) s.get("chunkId"))
+                        .title((String) s.get("title"))
+                        .section((String) s.get("section"))
+                        .similarity(s.get("similarity") != null ? ((Number) s.get("similarity")).doubleValue() : 0.0)
+                        .version(s.get("version") != null ? ((Number) s.get("version")).intValue() : 1)
+                        .build());
+            }
+        }
+
+        List<com.techconnect.dto.resolution.SimilarTicketDto> similarTickets = new ArrayList<>();
+        if (map.get("similarTickets") instanceof List) {
+            List<Map<String, Object>> rawTickets = (List<Map<String, Object>>) map.get("similarTickets");
+            for (Map<String, Object> t : rawTickets) {
+                similarTickets.add(com.techconnect.dto.resolution.SimilarTicketDto.builder()
+                        .ticketId(t.get("ticketId") != null ? ((Number) t.get("ticketId")).longValue() : null)
+                        .title((String) t.get("title"))
+                        .similarity(t.get("similarity") != null ? ((Number) t.get("similarity")).doubleValue() : 0.0)
+                        .resolutionSummary((String) t.get("resolutionSummary"))
+                        .category((String) t.get("category"))
+                        .priority((String) t.get("priority"))
+                        .build());
+            }
+        }
+
+        com.techconnect.dto.resolution.ResolutionRetrievalMetaDto retrieval = null;
+        if (map.get("retrievalMeta") instanceof Map) {
+            Map<String, Object> rMap = (Map<String, Object>) map.get("retrievalMeta");
+            retrieval = com.techconnect.dto.resolution.ResolutionRetrievalMetaDto.builder()
+                    .topK(rMap.get("topK") != null ? ((Number) rMap.get("topK")).intValue() : 0)
+                    .knowledgeChunksUsed(rMap.get("knowledgeChunksUsed") != null ? ((Number) rMap.get("knowledgeChunksUsed")).intValue() : 0)
+                    .similarTicketsUsed(rMap.get("similarTicketsUsed") != null ? ((Number) rMap.get("similarTicketsUsed")).intValue() : 0)
+                    .bestSimilarity(rMap.get("bestSimilarity") != null ? ((Number) rMap.get("bestSimilarity")).doubleValue() : 0.0)
+                    .build();
+        }
+
+        return com.techconnect.dto.resolution.ResolutionSuggestionResponse.builder()
+                .ticketId(ticketId)
+                .suggestion(suggestion)
+                .grounded(grounded)
+                .steps(steps)
+                .sources(sources)
+                .similarTickets(similarTickets)
+                .retrievalMeta(retrieval)
+                .provider(provider)
+                .model(model)
+                .processingTimeMs(processingTimeMs)
+                .build();
+    }
+
+    private com.techconnect.dto.resolution.ResolutionSuggestionResponse buildFallbackResolutionResponse(
+            Long ticketId, String message) {
+        return com.techconnect.dto.resolution.ResolutionSuggestionResponse.builder()
+                .ticketId(ticketId)
+                .suggestion(message)
+                .grounded(false)
+                .steps(new ArrayList<>())
+                .sources(new ArrayList<>())
+                .similarTickets(new ArrayList<>())
+                .provider("unavailable")
+                .model("unavailable")
+                .processingTimeMs(0)
+                .build();
+    }
 }
