@@ -409,6 +409,17 @@ const TicketDetails = () => {
               </button>
             )}
 
+            {/* Ask AI about this ticket Button (Phase 12 RAG Copilot) */}
+            <Link
+              to={`/ai-support?ticketId=${ticket.id}`}
+              className="btn btn-outline-info d-flex align-items-center gap-2"
+              title="Consult AI Support Copilot with this ticket's context"
+              aria-label="Ask AI about this ticket"
+            >
+              <i className="bi bi-robot"></i>
+              <span>Ask AI about this ticket</span>
+            </Link>
+
             {/* Status Change Button */}
             {availableTransitions.length > 0 && (
               <button

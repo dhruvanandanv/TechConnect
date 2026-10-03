@@ -118,4 +118,49 @@ Spring Boot KnowledgeArticleController (/api/knowledge/semantic-search, /ingesti
 3. **Graceful Degradation**:
    - If the Python vector service or pgvector database is unreachable, semantic search returns a graceful status payload (`available: false`), and keyword search remains 100% operational without application-wide outages.
 
+## 7. RAG-Based AI Support Copilot Architecture (Phase 12)
+
+```
+React Client (AI Support Copilot Portal / Ticket Details "Ask AI")
+       |
+       | REST + Bearer JWT (POST /api/ai/copilot/answer)
+       v
+Spring Boot Backend (/api/ai/copilot/answer)
+       |
+       +---> Spring Security Authentication (isAuthenticated())
+       +---> IDOR Ticket Ownership Validation (assertCanViewTicket)
+       +---> Knowledge Base RBAC Scoping (allowedStatuses, allowedArticleIds)
+       +---> AiSupportCopilotClient (Spring RestClient with strict 10s timeout)
+                |
+                | HTTP POST /api/v1/rag/answer
+                v
+Python AI Service (app/rag/)
+       |
+       +---> Stage 1: RETRIEVAL (app/rag/retriever.py)
+       |        - Embeds query with all-MiniLM-L6-v2 (384 dimensions)
+       |        - Cosine similarity search against pgvector knowledge_embedding_chunks
+       |        - Filters chunks by minSimilarity (0.30) and RBAC allowedStatuses
+       |
+       +---> Stage 2: CONTEXT CONSTRUCTION (app/rag/context_builder.py)
+       |        - Formats identifiable [SOURCE N] provenance blocks
+       |        - Injects advisory ticket context (Title, Priority, Category, Description)
+       |        - Enforces max context budget cap (4,000 characters)
+       |
+       +---> Stage 3: GENERATION (app/rag/service.py & app/rag/llm_provider.py)
+       |        - Pre-generation harmful request security filter
+       |        - Hardened system prompt (grounding only, prompt injection defense)
+       |        - Pluggable LlmProvider (OpenAI-compatible / local deterministic synthesizer)
+       |
+       +---> Stage 4: CITATION & RESPONSE (app/rag/service.py)
+                - Packages grounded answer with citations and retrieval quality metrics
+                - Returns to Spring Boot -> React Client
+```
+
+### 7.1 Enterprise Copilot Principles
+1. **Knowledge Base as Source of Truth**: The LLM is an extractive synthesizer, never an authoritative knowledge source.
+2. **Zero Direct LLM Exposure**: The browser never communicates with Python or LLM vendors; all traffic traverses Spring Boot for JWT and RBAC enforcement.
+3. **No Autonomous Actions**: Copilot is strictly advisory and cannot modify tickets, execute commands, or adjust SLAs.
+4. **Anti-Hallucination Quality Gate**: If semantic retrieval yields no chunks above the similarity threshold, the LLM is never called, and a safe refusal message is returned immediately.
+
+
 

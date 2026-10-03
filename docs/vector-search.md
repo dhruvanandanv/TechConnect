@@ -212,9 +212,10 @@ PENDING  ──>  PROCESSING  ──>  COMPLETED
 
 ---
 
-## 10. Phase 12 RAG Preparation Grounding
+## 10. Phase 12 RAG Support Copilot Integration
 
-The semantic search payload contains structured grounding metadata ready for Phase 12 LLM synthesis:
+Phase 12 builds directly on top of the Phase 11 semantic search pipeline by consuming `SemanticSearchResultChunk` outputs as structured grounding context for the **AI Support Copilot** (`POST /api/ai/copilot/answer`):
+
 ```json
 {
   "searchType": "SEMANTIC",
@@ -236,4 +237,10 @@ The semantic search payload contains structured grounding metadata ready for Pha
   ]
 }
 ```
-This payload will serve as the prompt context for Phase 12 RAG pipelines.
+
+### RAG Pipeline Integration Highlights:
+1. **Direct Reuse**: Phase 12 invokes the Phase 11 semantic retrieval service directly without duplicating embeddings or vector search logic.
+2. **Strict Minimum Similarity Gate**: Default `minSimilarity = 0.30` ensures low-quality or irrelevant chunks are discarded prior to context builder and LLM synthesis.
+3. **Context Construction & Citations**: Chunks are assembled into structured `[SOURCE N]` context blocks with article ID, section, and title provenance, providing 100% auditable citations in the copilot UI.
+4. **RBAC Scoping**: The same article status restrictions (`PUBLISHED` for Employee, draft access for authors/staff) are respected end-to-end.
+

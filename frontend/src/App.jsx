@@ -18,6 +18,7 @@ import Profile from './pages/Profile';
 import KnowledgeBase from './pages/KnowledgeBase';
 import KnowledgeArticleView from './pages/KnowledgeArticleView';
 import KnowledgeArticleEditor from './pages/KnowledgeArticleEditor';
+import AiSupportCopilot from './pages/AiSupportCopilot';
 import NotFound from './pages/NotFound';
 
 import './App.css';
@@ -113,6 +114,9 @@ function App() {
                 </RoleGuard>
               }
             />
+
+            {/* AI Support Copilot Route (Phase 12) */}
+            <Route path="/ai-support" element={<AiSupportCopilot />} />
 
             {/* Manager and Admin SLA Dashboard */}
             <Route

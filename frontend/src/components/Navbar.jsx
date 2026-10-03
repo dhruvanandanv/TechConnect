@@ -42,6 +42,15 @@ const Navbar = ({ onToggleSidebar }) => {
             </span>
           </div>
 
+          <Link
+            to="/ai-support"
+            className="btn btn-sm btn-outline-primary d-none d-md-flex align-items-center gap-1 py-1 px-2 rounded-pill"
+            title="Open AI Support Copilot"
+          >
+            <i className="bi bi-stars"></i>
+            <span>AI Copilot</span>
+          </Link>
+
           <div className="dropdown">
             <button
               className="btn btn-outline-light border text-dark dropdown-toggle d-flex align-items-center gap-2 py-1 px-2"

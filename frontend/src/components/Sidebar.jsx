@@ -94,6 +94,17 @@ const Sidebar = ({ isOpen, onCloseMobile }) => {
           </NavLink>
         )}
 
+        <div className="tc-nav-section-title mt-3">AI Intelligence</div>
+
+        <NavLink
+          to="/ai-support"
+          className={({ isActive }) => `tc-nav-link ${isActive ? 'active' : ''}`}
+          onClick={onCloseMobile}
+        >
+          <i className="bi bi-robot"></i>
+          <span>AI Support Copilot</span>
+        </NavLink>
+
         <div className="tc-nav-section-title mt-3">User Account</div>
 
         <NavLink

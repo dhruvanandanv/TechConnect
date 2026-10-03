@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import health, intelligence, knowledge_vector
+from app.routers import health, intelligence, knowledge_vector, copilot
 from app.services.predictor import predictor
 from app.embeddings.model import get_embedding_model
 
@@ -50,6 +50,7 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(intelligence.router)
 app.include_router(knowledge_vector.router)
+app.include_router(copilot.router)
 
 
 @app.get("/")

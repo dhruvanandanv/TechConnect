@@ -1002,5 +1002,92 @@ The TechConnect Spring Boot backend configures CORS in `com.techconnect.config.S
 - Handles network failures, timeouts, and backend outages gracefully via `extractErrorMessage()`, returning `"Unable to connect to TechConnect server. Please ensure the backend is running."` instead of raw Axios error traces.
 - All mutating actions (Ticket submission, self-assignment, status change, comments) feature UI loading spinners and button disablement to prevent duplicate submissions.
 
+---
+
+## 10. AI Support Copilot Endpoints (Phase 12)
+
+### 10.1 Synthesize Grounded Support Answer
+- **Endpoint**: `POST /api/ai/copilot/answer`
+- **Access**: Authenticated (`ROLE_EMPLOYEE`, `ROLE_ENGINEER`, `ROLE_MANAGER`, `ROLE_ADMIN`)
+- **Headers**: `Authorization: Bearer <token>`, `Content-Type: application/json`
+
+#### Request Payload:
+```json
+{
+  "query": "My corporate VPN keeps disconnecting when I work from home",
+  "category": "VPN",
+  "ticketId": 101,
+  "topK": 5,
+  "minSimilarity": 0.30
+}
+```
+
+| Field | Type | Required | Description |
+| :--- | :--- | :--- | :--- |
+| `query` | `String` | Yes | User technical support question (1 to 1000 characters). |
+| `category` | `TicketCategory` | No | Optional filter enum (`HARDWARE`, `SOFTWARE`, `NETWORK`, `VPN`, etc.). |
+| `ticketId` | `Long` | No | Optional ticket ID for contextual troubleshooting. Validated against user ownership (IDOR defense). |
+| `topK` | `Integer` | No | Number of vector chunks to retrieve (1 to 10, default 5). |
+| `minSimilarity` | `Double` | No | Minimum cosine similarity threshold (0.0 to 1.0, default 0.30). |
+
+#### Response (HTTP 200 OK - Grounded):
+```json
+{
+  "answer": "Based on the TechConnect knowledge base (Corporate AnyConnect VPN Configuration Guide):\n\n1. Flush local DNS cache using ipconfig /flushdns.\n2. Update AnyConnect client to v3.4.\n3. Verify corporate profile and reconnect.",
+  "grounded": true,
+  "confidence": 0.8842,
+  "sources": [
+    {
+      "articleId": "kb-vpn-1",
+      "chunkId": "kb-vpn-1-resolution-0",
+      "articleVersion": 1,
+      "title": "Corporate AnyConnect VPN Configuration Guide",
+      "section": "RESOLUTION",
+      "content": "1. Flush DNS using ipconfig /flushdns.\n2. Update AnyConnect to v3.4.\n3. Restart client.",
+      "similarity": 0.8842,
+      "category": "VPN",
+      "tags": ["vpn", "cisco", "network"]
+    }
+  ],
+  "retrieval": {
+    "topK": 5,
+    "resultsUsed": 1,
+    "bestSimilarity": 0.8842
+  },
+  "retrievedChunks": 1,
+  "model": "grounded-extractive-v1",
+  "provider": "techconnect-grounded-synthesizer",
+  "processingTimeMs": 45,
+  "ticketId": 101,
+  "ticketTitle": "VPN Disconnects on Home WiFi"
+}
+```
+
+#### Response (HTTP 200 OK - No Relevant Sources):
+```json
+{
+  "answer": "I couldn't find a sufficiently relevant troubleshooting article in the TechConnect knowledge base. Please contact an IT support engineer or search the Knowledge Base directly.",
+  "grounded": false,
+  "confidence": 0.0,
+  "sources": [],
+  "retrieval": {
+    "topK": 5,
+    "resultsUsed": 0,
+    "bestSimilarity": 0.0
+  },
+  "retrievedChunks": 0,
+  "model": "grounded-extractive-v1",
+  "provider": "techconnect-grounded-synthesizer",
+  "processingTimeMs": 28
+}
+```
+
+#### Security & Error Responses:
+- `HTTP 401 Unauthorized`: Missing, expired, or invalid JWT.
+- `HTTP 403 Forbidden`: User attempted to query a `ticketId` they do not have permission to view.
+- `HTTP 400 Bad Request`: Query was blank or exceeded 1,000 characters.
+- `Graceful Fallback`: If the AI microservice or LLM provider is offline, returns `HTTP 200 OK` with `grounded: false` and message `"The AI Support Copilot is temporarily unavailable. You can still use Knowledge Base search."` Zero stack traces or credentials leaked.
+
+
 
 

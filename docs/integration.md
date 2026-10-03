@@ -344,9 +344,31 @@ The Spring Boot backend delegates semantic embedding generation and vector neare
 
 ---
 
-## 14. Known Limitations (Post-Phase 11)
-- **Retrieval Only**: Phase 11 performs vector retrieval and similarity scoring. Generative AI answers and conversational RAG belong to Phase 12.
+## 14. RAG-Based AI Support Copilot Integration (Phase 12)
+
+### 14.1 Enterprise Orchestration Flow
+```
+Browser (React) ──[POST /api/ai/copilot/answer]──> Spring Boot ──[POST /api/v1/rag/answer]──> Python RAG ──> LLM Provider
+```
+1. **React Client**: Dispatches user inquiries to Spring Boot with JWT Bearer authentication.
+2. **Spring Boot**:
+   - Authenticates user and evaluates RBAC knowledge scoping rules.
+   - If `ticketId` is provided, executes `assertCanViewTicket` to validate ownership (preventing IDOR attacks).
+   - Forwards sanitized payload to Python AI Service via `AiSupportCopilotClient`.
+3. **Python AI Service**:
+   - Stage 1: Vector retrieval via pgvector and all-MiniLM-L6-v2 embeddings.
+   - Stage 2: Context construction with source provenance and 4,000 char budget cap.
+   - Stage 3: Grounded response synthesis via `LlmProvider` with strict 10s timeout and prompt injection defense.
+   - Stage 4: Citation metadata and retrieval statistics packaging.
+4. **Graceful Fallback**: If the Python service or LLM provider times out or fails, Spring Boot returns a safe `grounded: false` response, ensuring zero application crashes.
+
+---
+
+## 15. Known Limitations (Post-Phase 12)
+- **Single-Turn Interaction**: Copilot currently processes single-turn question-to-grounded-answer inquiries. Persistent multi-turn chat sessions belong to future enhancements.
+- **Advisory Only**: AI Copilot cannot autonomously close tickets, assign engineers, or alter SLAs. Human confirmation is strictly required.
 - **Token Refresh**: Silent refresh token rotation is not yet implemented; users must re-authenticate upon token expiration.
-- **WebSocket Push**: Ticket updates and SLA status refresh via HTTP refetching rather than real-time WebSockets.
+- **WebSocket Streaming**: Copilot returns structured JSON responses; streaming token chunk delivery is not yet implemented.
+
 
 
