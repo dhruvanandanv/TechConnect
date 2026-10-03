@@ -1,6 +1,7 @@
-version: '3.8'
-
 services:
+  # ----------------------------------------------------------------------------
+  # 1. PostgreSQL Relational Database with pgvector Extension
+  # ----------------------------------------------------------------------------
   postgres:
     image: pgvector/pgvector:pg16
     container_name: techconnect-postgres
@@ -10,27 +11,172 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - techconnect_internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d techconnect_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-techconnect_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
 
+  # ----------------------------------------------------------------------------
+  # 2. MongoDB Document Database (Knowledge Base Articles & Audit History)
+  # ----------------------------------------------------------------------------
   mongodb:
     image: mongo:7.0
     container_name: techconnect-mongodb
     restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGODB_DB:-techconnect_knowledge}
     ports:
-      - "${MONGO_PORT:-27017}:27017"
+      - "127.0.0.1:${MONGODB_PORT:-27017}:27017"
     volumes:
       - mongo_data:/data/db
+    networks:
+      - techconnect_internal
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok' | grep 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
+  # ----------------------------------------------------------------------------
+  # 3. Python AI Microservice (FastAPI + Embeddings + ML + RAG Pipeline)
+  # ----------------------------------------------------------------------------
+  ai-service:
+    build:
+      context: ./ai_services/ticket_intelligence
+      dockerfile: Dockerfile
+    image: techconnect-ai-service:1.0.0
+    container_name: techconnect-ai-service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-techconnect_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      TECHCONNECT_LLM_PROVIDER: ${TECHCONNECT_LLM_PROVIDER:-extractive}
+      TECHCONNECT_LLM_API_KEY: ${TECHCONNECT_LLM_API_KEY:-}
+      TECHCONNECT_LLM_MODEL: ${TECHCONNECT_LLM_MODEL:-grounded-extractive-v1}
+      AI_SERVICE_HOST: 0.0.0.0
+      AI_SERVICE_PORT: 8000
+    volumes:
+      - ai_model_cache:/app/data/models_cache
+    networks:
+      - techconnect_internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ----------------------------------------------------------------------------
+  # 4. Spring Boot Enterprise Backend (REST API + Security + SLA + RAG Client)
+  # ----------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: techconnect-backend:1.0.0
+    container_name: techconnect-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      ai-service:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SERVER_PORT: 8080
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-techconnect_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      MONGODB_HOST: mongodb
+      MONGODB_PORT: 27017
+      MONGODB_DB: ${MONGODB_DB:-techconnect_knowledge}
+      MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-techconnect_knowledge}
+      TECHCONNECT_MONGODB_URI: mongodb://mongodb:27017/${MONGODB_DB:-techconnect_knowledge}
+      JWT_SECRET: ${JWT_SECRET:-${TECHCONNECT_JWT_SECRET:-dGVjaGNvbm5lY3RfZW50ZXJwcmlzZV9qd3Rfc2VjdXJlX2tleV8yMDI2IQ==}}
+      TECHCONNECT_JWT_SECRET: ${TECHCONNECT_JWT_SECRET:-${JWT_SECRET:-dGVjaGNvbm5lY3RfZW50ZXJwcmlzZV9qd3Rfc2VjdXJlX2tleV8yMDI2IQ==}}
+      JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-3600000}
+      TECHCONNECT_JWT_EXPIRATION_MS: ${TECHCONNECT_JWT_EXPIRATION_MS:-3600000}
+      AI_SERVICE_URL: http://ai-service:8000
+      TECHCONNECT_AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_TIMEOUT_MS: ${AI_SERVICE_TIMEOUT_MS:-5000}
+      COPILOT_TIMEOUT_MS: ${COPILOT_TIMEOUT_MS:-10000}
+      RESOLUTION_TIMEOUT_MS: ${RESOLUTION_TIMEOUT_MS:-10000}
+      TECHCONNECT_SEED_DEV_USERS: ${TECHCONNECT_SEED_DEV_USERS:-false}
+      TECHCONNECT_DEV_PASSWORD: ${TECHCONNECT_DEV_PASSWORD:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://localhost:5173,http://127.0.0.1:5173}
+      RATE_LIMIT_ENABLED: ${RATE_LIMIT_ENABLED:-true}
+      RATE_LIMIT_AI_REQUESTS_PER_MINUTE: ${RATE_LIMIT_AI_REQUESTS_PER_MINUTE:-20}
+      RATE_LIMIT_SEARCH_REQUESTS_PER_MINUTE: ${RATE_LIMIT_SEARCH_REQUESTS_PER_MINUTE:-60}
+      RATE_LIMIT_GENERAL_REQUESTS_PER_MINUTE: ${RATE_LIMIT_GENERAL_REQUESTS_PER_MINUTE:-120}
+    ports:
+      - "127.0.0.1:${SERVER_PORT:-8080}:8080"
+    networks:
+      - techconnect_internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ----------------------------------------------------------------------------
+  # 5. React Frontend Client (Nginx Reverse Proxy + SPA)
+  # ----------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    image: techconnect-frontend:1.0.0
+    container_name: techconnect-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+    networks:
+      - techconnect_internal
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+# ------------------------------------------------------------------------------
+# Persistent Storage Volumes
+# ------------------------------------------------------------------------------
 volumes:
   postgres_data:
     driver: local
   mongo_data:
     driver: local
+  ai_model_cache:
+    driver: local
 
+# ------------------------------------------------------------------------------
+# Isolated Internal Network
+# ------------------------------------------------------------------------------
+networks:
+  techconnect_internal:
+    driver: bridge

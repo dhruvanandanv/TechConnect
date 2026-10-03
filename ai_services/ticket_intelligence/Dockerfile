@@ -1,3 +1,8 @@
+# ==============================================================================
+# TechConnect AI Microservice Production Dockerfile (Python 3.12 / FastAPI)
+# Multi-stage production container with model pre-caching and non-root execution
+# ==============================================================================
+
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -5,25 +10,38 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     AI_SERVICE_HOST=0.0.0.0 \
-    AI_SERVICE_PORT=8000
+    AI_SERVICE_PORT=8000 \
+    HF_HOME=/app/data/models_cache \
+    SENTENCE_TRANSFORMERS_HOME=/app/data/models_cache \
+    FASTEMBED_CACHE_PATH=/app/data/models_cache
 
-# Install system dependencies if required
+# Install runtime dependencies & curl for healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Python dependencies deterministically
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy application source code
 COPY . .
 
-# Train model during image build if artifacts do not exist
-RUN python -m app.ml.train
+# Pre-train classification model and warm up embedding model cache at build time
+RUN python -m app.ml.train && \
+    python -c "from app.embeddings.generator import generate_embedding; generate_embedding('cache warmup embedding')"
+
+# Create non-root application user and grant directory permissions
+RUN useradd -m -u 1000 -s /bin/bash appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
+# Health check probe against FastAPI /health endpoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-keep-alive", "65"]

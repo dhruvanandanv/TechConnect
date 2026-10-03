@@ -180,5 +180,33 @@ The resolution assistant combines three data sources:
 - **RBAC Gate**: Endpoint `POST /api/ai/tickets/{ticketId}/resolution-suggestion` strictly requires `ROLE_ENGINEER`, `ROLE_MANAGER`, or `ROLE_ADMIN`. Standard `ROLE_EMPLOYEE` requests are rejected with HTTP 403 Forbidden.
 - **IDOR Protection**: `assertCanViewTicket` verifies ticket visibility before triggering AI synthesis.
 
+---
+
+## 9. Phase 14 — Production Engineering & Deployment Architecture
+
+Phase 14 transitions TechConnect into a hardened, production-ready multi-container architecture.
+
+### 9.1 Containerization Topology
+- **Nginx Frontend Proxy**: Serves Vite-built static assets and reverse-proxies `/api/` traffic to the backend, enforcing SPA fallback routing and strict HTTP security headers (`DENY`, `nosniff`, `strict-origin-when-cross-origin`).
+- **Spring Boot Backend Container**: Multi-stage Temurin 21 JRE container running as non-root user `spring` (UID 1001), tuned with container-aware JVM flags (`-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0`).
+- **FastAPI AI Microservice Container**: Python 3.12 slim container running as non-root user `appuser` (UID 1000) with pre-cached embedding weights.
+- **PostgreSQL 16 with pgvector**: Relational transaction store and vector embedding store with persistent named volume `postgres_data`.
+- **MongoDB 7.0**: Knowledge article document store with persistent named volume `mongo_data`.
+- **Isolated Internal Network**: Containers communicate over bridge network `techconnect_internal`, preventing unauthorized external access to database or AI ports.
+
+### 9.2 Observability & Health Probes
+- **Spring Boot Actuator**: Health endpoint `/actuator/health` exposes liveness and readiness states with `management.endpoint.health.show-details=never` to prevent sensitive credential or connection string leakage.
+- **Docker Compose Dependencies**: Utilizes `condition: service_healthy` across backend, databases, and AI services to ensure orderly, dependency-verified startup.
+- **Structured Logging**: Clean console pattern with timestamps, thread identification, log levels, and automatic redaction of secrets, passwords, and tokens.
+
+### 9.3 In-Memory Rate Limiting
+- **Protection**: Jakarta Servlet Filter (`RateLimitingFilter`) intercepts requests ahead of the security filter.
+- **Sliding Window Categories**:
+  - AI Operations: 20 requests/minute.
+  - Semantic Search: 60 requests/minute.
+  - General API: 120 requests/minute.
+- **Protocol**: Returns `HTTP 429 Too Many Requests` with `Retry-After: 60` and standard `ErrorResponse` JSON.
+
+
 
 

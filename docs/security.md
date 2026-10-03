@@ -209,4 +209,41 @@ Vector retrieval in PostgreSQL adheres to the same authorization boundaries as t
   - It cannot modify SLA parameters.
 - In the frontend, the "Copy to Resolution" button merely stages the suggested text in the resolution modal textarea. The human engineer must review and manually submit the resolution.
 
+---
+
+## 11. Production Hardening & Deployment Security (Phase 14)
+
+### 11.1 Zero Hardcoded Secrets & Externalized Configuration
+- Production credentials for PostgreSQL, MongoDB, JWT secret keys, and LLM providers are strictly externalized into environment variables.
+- An example template `.env.example` provides placeholders only without real secrets.
+- Baseline developer seeding (`app.seed.dev-users`) is disabled by default in production (`false`).
+- Development passwords are removed from all Git-tracked source and property files.
+
+### 11.2 In-Memory Sliding Window Rate Limiting
+- To protect expensive AI operations, RAG pipelines, and vector searches from abuse and denial-of-service, a thread-safe `RateLimitingFilter` intercepts requests:
+  - **AI Endpoints** (`/api/ai/**`): 20 requests/minute per client IP.
+  - **Search Endpoints** (`/api/knowledge-base/search/**`): 60 requests/minute per client IP.
+  - **General API Endpoints** (`/api/**`): 120 requests/minute per client IP.
+- When an IP exceeds its allotted quota within a rolling 60-second window, the filter immediately returns **HTTP 429 Too Many Requests** with header `Retry-After: 60` and standard `ErrorResponse` payload, protecting downstream LLM and database resources.
+
+### 11.3 Actuator Health Probe Sanitization
+- Spring Boot Actuator endpoints are exposed for container orchestration readiness/liveness checks at `/actuator/health`.
+- `management.endpoint.health.show-details=never` is enforced in production to ensure internal JDBC connection strings, database usernames, hostnames, and component internals are never leaked to unauthenticated callers.
+
+### 11.4 HTTP Security Headers
+- The backend SecurityFilterChain and Nginx reverse proxy enforce defensive HTTP headers:
+  - `X-Frame-Options: DENY` (prevents clickjacking attacks).
+  - `X-Content-Type-Options: nosniff` (prevents browser MIME-type sniffing).
+  - `Referrer-Policy: strict-origin-when-cross-origin` (prevents path leakage in referrer headers).
+
+### 11.5 Network Isolation & Non-Root Containers
+- Database services (PostgreSQL + pgvector, MongoDB) and the Python AI microservice run within an isolated internal bridge network `techconnect_internal`.
+- Container runtimes execute under dedicated unprivileged non-root users:
+  - Backend: `spring` (UID 1001).
+  - AI Microservice: `appuser` (UID 1000).
+
+### 11.6 Logging Sanitization Policy
+- Application logs across Spring Boot and Python strictly prohibit logging passwords, raw JWT tokens, API keys, or Authorization headers.
+
+
 

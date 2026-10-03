@@ -111,6 +111,8 @@ TechConnect/
 - **Phase 10 – Knowledge Base Management System**: COMPLETE
 - **Phase 11 – AI Knowledge Ingestion, Embeddings & Vector Search**: COMPLETE
 - **Phase 12 – RAG-Based AI Support Copilot**: COMPLETE
+- **Phase 13 – AI Engineer Resolution Assistant**: COMPLETE
+- **Phase 14 – Production Engineering & Deployment Readiness**: COMPLETE
 
 ---
 
@@ -164,6 +166,8 @@ npm run build
 ---
 
 ## Documentation
+- **Deployment & Operations Guide (Phase 14)**: Multi-container Docker deployment, Actuator health probes, sliding window rate limiting, and database backup/recovery runbooks are documented in [docs/deployment.md](docs/deployment.md).
+- **Production Readiness Assessment (Phase 14)**: Security hardening, containerization audit, risk evaluation, and deployment assumptions are documented in [docs/production-readiness.md](docs/production-readiness.md).
 - **AI Engineer Resolution Assistant (Phase 13)**: Tri-fold grounding (Active Ticket Context, Verified Knowledge Articles, Similar Resolved Tickets), resolution prompt strategy, RBAC barriers, and non-autonomous advisory flow are documented in [docs/ai-resolution-assistant.md](docs/ai-resolution-assistant.md).
 - **RAG-Based AI Support Copilot (Phase 12)**: 4-stage RAG architecture, semantic chunk retrieval, anti-hallucination gates, and source citations are documented in [docs/rag.md](docs/rag.md).
 - **AI Knowledge Ingestion, Embeddings & Vector Search**: Text normalization, section-aware chunking, SentenceTransformers/FastEmbed (`all-MiniLM-L6-v2`, 384 dimensions), PostgreSQL + pgvector chunk storage, cosine vector retrieval, and version invalidation are documented in [docs/vector-search.md](docs/vector-search.md).

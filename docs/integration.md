@@ -377,11 +377,36 @@ TicketDetails.jsx (React) ──[POST /api/ai/tickets/{id}/resolution-suggestion
 
 ---
 
-## 16. Known Limitations (Post-Phase 13)
+## 16. Known Limitations (Post-Phase 14)
 - **Single-Turn Interaction**: The resolution assistant produces a point-in-time resolution proposal per ticket. Multi-turn interactive troubleshooting sessions belong to future enhancements.
 - **Strictly Advisory**: The AI cannot autonomously resolve, close, assign, or mutate tickets.
 - **Token Refresh**: Silent refresh token rotation is not yet implemented; users must re-authenticate upon token expiration.
-- **WebSocket Streaming**: Copilot and Resolution Assistant return structured JSON; token streaming is omitted by design.
+- **In-Memory Rate Limiting**: The rate limiter uses an in-memory sliding window appropriate for single-node deployments; multi-node clusters can back this with distributed Redis.
+
+---
+
+## 17. Production Deployment & Operational Controls (Phase 14)
+
+### 17.1 Reverse Proxy & Gateway Integration
+In containerized production deployments:
+- The React application is built into optimized static artifacts and served via Nginx.
+- Nginx acts as the primary ingress on port 5173 (container port 80), reverse proxying `/api/` traffic directly to Spring Boot backend (`http://backend:8080/api/`).
+- External clients never communicate directly with internal databases or the Python microservice.
+
+### 17.2 Rate Limiting Filter Chain
+The backend filter chain includes:
+1. `RateLimitingFilter`: Evaluates IP-based sliding window request counters.
+   - AI Endpoints: 20 requests/minute.
+   - Search Endpoints: 60 requests/minute.
+   - General Endpoints: 120 requests/minute.
+   - Breached requests immediately return `HTTP 429 Too Many Requests` with `Retry-After: 60`.
+2. `JwtAuthenticationFilter`: Validates Bearer token authenticity and assigns authorities.
+3. `SecurityFilterChain`: Evaluates endpoint permissions and enforces HTTP security headers.
+
+### 17.3 Observability & Health Probes
+- `GET /actuator/health`: Provides liveness/readiness status for Docker and orchestrator probes.
+- Sanitized health payload: `management.endpoint.health.show-details=never` ensures no credentials, connection strings, or host details are exposed.
+
 
 
 
